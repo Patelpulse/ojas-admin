@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
+import 'package:ojas_admin/features/vendors/data/services/vendor_service.dart';
+import 'package:intl/intl.dart';
 
 class VendorsPage extends StatefulWidget {
   const VendorsPage({super.key});
@@ -11,6 +14,50 @@ class VendorsPage extends StatefulWidget {
 
 class _VendorsPageState extends State<VendorsPage> {
   final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _vendors = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVendors();
+  }
+
+  Future<void> _fetchVendors() async {
+    setState(() => _isLoading = true);
+    try {
+      final vendors = await sl<VendorService>().getVendorRequests();
+      setState(() {
+        _vendors = vendors;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch vendors: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateStatus(String id, String status) async {
+    try {
+      await sl<VendorService>().updateVendorStatus(id, status);
+      await _fetchVendors();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vendor $status successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +107,7 @@ class _VendorsPageState extends State<VendorsPage> {
                       Expanded(
                         child: _buildMetricCard(
                           title: 'Active Vendors',
-                          value: '0',
+                          value: _vendors.where((v) => v['status'] == 'active').length.toString(),
                           icon: Icons.check_circle_outline,
                           iconBgColor: const Color(0xFFD1FAE5), // Light green
                           iconColor: const Color(0xFF10B981), // Green
@@ -70,7 +117,7 @@ class _VendorsPageState extends State<VendorsPage> {
                       Expanded(
                         child: _buildMetricCard(
                           title: 'Pending Approvals',
-                          value: '0',
+                          value: _vendors.where((v) => v['status'] == 'pending').length.toString(),
                           icon: Icons.filter_alt_outlined,
                           iconBgColor: const Color(0xFFFEF3C7), // Light yellow
                           iconColor: const Color(0xFFF59E0B), // Orange-yellow
@@ -80,7 +127,7 @@ class _VendorsPageState extends State<VendorsPage> {
                       Expanded(
                         child: _buildMetricCard(
                           title: 'Total Vendors',
-                          value: '0',
+                          value: _vendors.length.toString(),
                           icon: Icons.store_outlined,
                           iconBgColor: const Color(0xFFDBEAFE), // Light blue
                           iconColor: const Color(0xFF3B82F6), // Blue
@@ -150,24 +197,142 @@ class _VendorsPageState extends State<VendorsPage> {
                           ),
                         ),
 
-                        // Empty State
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 60),
-                          child: Center(
-                            child: Text(
-                              'No vendor applications yet.',
-                              style: GoogleFonts.inter(
-                                color: Colors.grey.shade500,
-                                fontSize: 14,
+                        // Table Rows
+                        if (_isLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 60),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_vendors.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 60),
+                            child: Center(
+                              child: Text(
+                                'No vendor applications yet.',
+                                style: GoogleFonts.inter(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _vendors.length,
+                            itemBuilder: (context, index) {
+                              final vendor = _vendors[index];
+                              return _buildVendorRow(vendor);
+                            },
                           ),
-                        ),
                       ],
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVendorRow(Map<String, dynamic> vendor) {
+    final status = vendor['status'] ?? 'pending';
+    final user = vendor['user'] ?? {};
+    final statusColor = status == 'approved' ? const Color(0xFF10B981) : (status == 'rejected' ? Colors.red : const Color(0xFFF59E0B));
+    final statusBg = status == 'approved' ? const Color(0xFFD1FAE5) : (status == 'rejected' ? Colors.red.shade50 : const Color(0xFFFEF3C7));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.storefront_outlined, size: 20, color: Colors.grey),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    vendor['businessName'] ?? 'No Name',
+                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF0F172A)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(user['name'] ?? 'Unknown', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
+                Text(user['email'] ?? '', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text((vendor['categories'] as List?)?.join(', ') ?? 'General', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600), maxLines: 2, overflow: TextOverflow.ellipsis),
+          ),
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              vendor['createdAt'] != null ? DateFormat('MMM dd, yyyy').format(DateTime.parse(vendor['createdAt'])) : 'N/A',
+              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (status == 'pending') ...[
+                  IconButton(
+                    onPressed: () => _updateStatus(vendor['_id'], 'approved'),
+                    icon: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
+                    tooltip: 'Approve',
+                  ),
+                  IconButton(
+                    onPressed: () => _updateStatus(vendor['_id'], 'rejected'),
+                    icon: const Icon(Icons.cancel, color: Colors.red, size: 20),
+                    tooltip: 'Reject',
+                  ),
+                ] else
+                   const Icon(Icons.verified, color: Colors.blue, size: 20),
+              ],
             ),
           ),
         ],

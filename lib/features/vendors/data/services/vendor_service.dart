@@ -1,0 +1,33 @@
+import 'package:ojas_admin/core/services/api_service.dart';
+
+class VendorService {
+  final ApiService _apiService;
+
+  VendorService(this._apiService);
+
+  Future<List<dynamic>> getVendors() async {
+    try {
+      final response = await _apiService.dio.get('/admin/vendors');
+      return response.data['data'];
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getVendorRequests() async {
+    try {
+      final response = await _apiService.dio.get('/admin/vendor-requests');
+      return response.data['data'];
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateVendorStatus(String id, String status) async {
+    try {
+      await _apiService.dio.put('/admin/vendor-status/$id', data: {'status': status});
+    } catch (e) {
+      rethrow;
+    }
+  }
+}

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class Sidebar extends StatelessWidget {
   final String currentRoute;
 
@@ -8,6 +10,14 @@ class Sidebar extends StatelessWidget {
     super.key,
     required this.currentRoute,
   });
+
+  Future<void> _logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('admin_token');
+    if (context.mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +86,6 @@ class Sidebar extends StatelessWidget {
               children: [
                 _buildSectionTitle('ADMINISTRATION'),
                 _buildMenuItem(context, Icons.dashboard_outlined, 'Admin Overview', '/admin-overview'),
-                _buildMenuItem(context, Icons.person_outline, 'User Detail', '/user-detail'),
                 _buildMenuItem(context, Icons.admin_panel_settings_outlined, 'Admin Management', '/admin-management'),
                 _buildMenuItem(context, Icons.account_circle_outlined, 'Profile', '/profile'),
                 _buildMenuItem(context, Icons.settings_outlined, 'Website Settings', '/settings'),
@@ -95,10 +104,45 @@ class Sidebar extends StatelessWidget {
                 const SizedBox(height: 16),
                 _buildSectionTitle('SUPPORT'),
                 _buildMenuItem(context, Icons.help_outline, 'Help Management', '/help'),
+
+                const SizedBox(height: 24),
+                const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                const SizedBox(height: 8),
+                _buildLogoutItem(context),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutItem(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        leading: const Icon(
+          Icons.logout_rounded,
+          color: Colors.redAccent,
+          size: 20,
+        ),
+        title: Text(
+          'Sign Out',
+          style: GoogleFonts.inter(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        dense: true,
+        horizontalTitleGap: 8,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        onTap: () => _logout(context),
       ),
     );
   }

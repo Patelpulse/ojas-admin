@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   final Dio _dio = Dio();
-  static const String baseUrl = 'http://72.61.172.182:5001/api/admin';
+  static const String baseUrl = 'http://72.61.172.182:5001/api';
 
   ApiService() {
     _dio.options.baseUrl = baseUrl;

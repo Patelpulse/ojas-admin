@@ -12,6 +12,7 @@ import 'package:ojas_admin/features/subcategories/presentation/pages/subcategori
 import 'package:ojas_admin/features/discounts/presentation/pages/discounts_page.dart';
 import 'package:ojas_admin/features/vendors/presentation/pages/vendors_page.dart';
 import 'package:ojas_admin/features/help/presentation/pages/help_page.dart';
+import 'package:ojas_admin/features/auth/presentation/pages/login_page.dart';
 import 'package:ojas_admin/core/services/service_locator.dart' as di;
 
 void main() async {
@@ -29,8 +30,9 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Ojas Admin',
       theme: AppTheme.lightTheme,
-      initialRoute: '/admin-overview',
+      initialRoute: '/login',
       routes: {
+        '/login': (context) => const LoginPage(),
         '/': (context) => const DashboardPage(currentRoute: '/'),
         '/admin-overview': (context) => const DashboardPage(currentRoute: '/admin-overview'),
         '/admin-management': (context) => const AdminManagementPage(),
@@ -44,7 +46,6 @@ class MyApp extends StatelessWidget {
         '/users': (context) => const UsersPage(),
         '/vendors': (context) => const VendorsPage(),
         '/help': (context) => const HelpPage(),
-        '/user-detail': (context) => const UsersPage(currentRoute: '/user-detail'),
       },
     );
   }

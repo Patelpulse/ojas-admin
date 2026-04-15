@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
+import 'package:ojas_admin/core/services/api_service.dart';
+import 'package:dio/dio.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -10,13 +12,119 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final TextEditingController _nameController = TextEditingController(text: 'OJAS');
-  final TextEditingController _taglineController = TextEditingController(text: 'Where Great Products Meet Happy Customers');
-  final TextEditingController _emailController = TextEditingController(text: 'support@ojas.com');
-  final TextEditingController _phoneController = TextEditingController(text: '+1 (555) 123-4567');
-  final TextEditingController _footerController = TextEditingController(text: '© 2026 OJAS. All rights reserved.');
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _taglineController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _footerController = TextEditingController();
+  final TextEditingController _announcementController = TextEditingController();
+  final TextEditingController _linkController = TextEditingController();
+  // New: Contact info
+  final TextEditingController _contactPhoneController = TextEditingController();
+  final TextEditingController _contactEmailController = TextEditingController();
+  final TextEditingController _contactAddressController = TextEditingController();
+  // New: Legal pages
+  final TextEditingController _returnRefundController = TextEditingController();
+  final TextEditingController _termsController = TextEditingController();
+  final TextEditingController _privacyController = TextEditingController();
   
   bool _enableAnnouncement = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      setState(() => _isLoading = true);
+      final response = await ApiService().dio.get('/admin/settings');
+      if (response.statusCode == 200) {
+        final data = response.data['data'];
+        _nameController.text = data['marketplaceName'] ?? '';
+        _taglineController.text = data['tagline'] ?? '';
+        _emailController.text = data['supportEmail'] ?? '';
+        _phoneController.text = data['supportPhone'] ?? '';
+        _footerController.text = data['footerMessage'] ?? '';
+        _announcementController.text = data['announcementMessage'] ?? '';
+        _linkController.text = data['announcementLink'] ?? '';
+        _enableAnnouncement = data['enableAnnouncement'] ?? false;
+        // New fields
+        _contactPhoneController.text = data['contactPhone'] ?? '';
+        _contactEmailController.text = data['contactEmail'] ?? '';
+        _contactAddressController.text = data['contactAddress'] ?? '';
+        _returnRefundController.text = data['returnRefundPolicy'] ?? '';
+        _termsController.text = data['termsConditions'] ?? '';
+        _privacyController.text = data['privacyPolicy'] ?? '';
+      }
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    debugPrint('Saving settings with data: ${_nameController.text}');
+    try {
+      final response = await ApiService().dio.put('/admin/settings', data: {
+        'marketplaceName': _nameController.text,
+        'tagline': _taglineController.text,
+        'supportEmail': _emailController.text,
+        'supportPhone': _phoneController.text,
+        'footerMessage': _footerController.text,
+        'announcementMessage': _announcementController.text,
+        'announcementLink': _linkController.text,
+        'enableAnnouncement': _enableAnnouncement,
+        // New fields
+        'contactPhone': _contactPhoneController.text,
+        'contactEmail': _contactEmailController.text,
+        'contactAddress': _contactAddressController.text,
+        'returnRefundPolicy': _returnRefundController.text,
+        'termsConditions': _termsController.text,
+        'privacyPolicy': _privacyController.text,
+      });
+
+      debugPrint('Save response: ${response.statusCode} - ${response.data}');
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Settings saved successfully! Updating user website...')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error saving settings: $e');
+      if (mounted) {
+        String errorMessage = 'Failed to save settings';
+        if (e is DioException && e.response != null) {
+          errorMessage = e.response?.data['message'] ?? errorMessage;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _resetToDefault() async {
+    try {
+      final response = await ApiService().dio.post('/admin/settings/reset');
+      if (response.statusCode == 200) {
+        await _loadSettings();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Settings reset to defaults')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error resetting settings: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,102 +148,108 @@ class _SettingsPageState extends State<SettingsPage> {
 
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Website Identity & Branding',
-                            style: GoogleFonts.outfit(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Manage marketplace identity, colors, and contact details shown across the platform.',
-                            style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.refresh, size: 16),
-                            label: Text('Reset Changes', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.grey.shade700,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.settings_backup_restore, size: 16),
-                            label: Text('Reset to Default', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.save_outlined, size: 16),
-                            label: Text('Save Settings', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B5CF6), // Purple
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              elevation: 0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Main Layout (2 Columns)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Column: Forms
-                      Expanded(
-                        flex: 5,
-                        child: Column(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildBrandBasicsCard(),
-                            const SizedBox(height: 24),
-                            _buildLogoFaviconCard(),
-                            const SizedBox(height: 24),
-                            _buildAnnouncementCard(),
-                            const SizedBox(height: 40),
+                            Text(
+                              'Website Identity & Branding',
+                              style: GoogleFonts.outfit(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Manage marketplace identity, colors, and contact details shown across the platform.',
+                              style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 24),
-                      // Right Column: Preview
-                      Expanded(
-                        flex: 3,
-                        child: _buildPreviewCard(),
-                      ),
-                    ],
-                  ),
-                ],
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () {},
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: Text('Reset Changes', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.grey.shade700,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton.icon(
+                              onPressed: _resetToDefault,
+                              icon: const Icon(Icons.settings_backup_restore, size: 16),
+                              label: Text('Reset to Default', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: _saveSettings,
+                              icon: const Icon(Icons.save_outlined, size: 16),
+                              label: Text('Save Settings', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B5CF6), // Purple
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                elevation: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Main Layout (2 Columns)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left Column: Forms
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            children: [
+                              _buildBrandBasicsCard(),
+                              const SizedBox(height: 24),
+                              _buildLogoFaviconCard(),
+                              const SizedBox(height: 24),
+                              _buildAnnouncementCard(),
+                              const SizedBox(height: 24),
+                              _buildContactInfoCard(),
+                              const SizedBox(height: 24),
+                              _buildLegalPagesCard(),
+                              const SizedBox(height: 40),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        // Right Column: Preview
+                        Expanded(
+                          flex: 3,
+                          child: _buildPreviewCard(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -275,9 +389,94 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
           const SizedBox(height: 20),
-          _buildTextField('Announcement Message', null, maxLines: 2),
+          _buildTextField('Announcement Message', _announcementController, maxLines: 2),
           const SizedBox(height: 20),
-          _buildTextField('Link', null),
+          _buildTextField('Link', _linkController),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactInfoCard() {
+    return _buildCardWrapper(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Get In Touch (Footer)', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+                  const SizedBox(height: 4),
+                  Text('Contact details shown in the website footer.', style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
+                ],
+              ),
+              const Icon(Icons.contact_phone_outlined, color: Colors.teal, size: 24),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(child: _buildTextField('Phone Number', _contactPhoneController)),
+              const SizedBox(width: 20),
+              Expanded(child: _buildTextField('Email Address', _contactEmailController)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildTextField('Address', _contactAddressController),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalPagesCard() {
+    return _buildCardWrapper(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Legal Pages Content', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+                  const SizedBox(height: 4),
+                  Text('Manage content for Return & Refund Policy, Terms & Conditions, and Privacy Policy pages.', style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
+                ],
+              ),
+              const Icon(Icons.gavel_outlined, color: Color(0xFF8B5CF6), size: 24),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildTextField('Return & Refund Policy', _returnRefundController, maxLines: 10),
+          const SizedBox(height: 20),
+          _buildTextField('Terms & Conditions', _termsController, maxLines: 10),
+          const SizedBox(height: 20),
+          _buildTextField('Privacy Policy', _privacyController, maxLines: 10),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue.shade600, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You can use plain text or basic HTML. Changes are reflected instantly on the user website after saving.',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.blue.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -329,7 +528,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     children: [
                       Text(
                         _nameController.text,
-                        style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
@@ -408,15 +607,12 @@ class _SettingsPageState extends State<SettingsPage> {
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
       ),
-      // Adding a CustomPaint for dashed border or simply using a container with border for mockup.
-      // A simple solid light border works for a quick representation if dashed isn't strictly enforced by a custom painter.
-      // But let's build a clean minimal look representing the dashed border.
       child: Stack(
         children: [
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid), // Simulating dash
+                border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
                 borderRadius: BorderRadius.circular(8),
               ),
             ),

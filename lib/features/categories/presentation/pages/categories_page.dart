@@ -666,19 +666,20 @@ class _CategoryFormModalState extends State<CategoryFormModal> {
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedParent,
-                    isExpanded: true,
-                    items: ['No parent (Main Category)', 'Electronics', 'Fashion', 'Home & Living'].map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (v) => setState(() => _selectedParent = v!),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedParent,
+                      dropdownColor: Colors.white,
+                      isExpanded: true,
+                      items: ['No parent (Main Category)', 'Electronics', 'Fashion', 'Home & Living'].map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (v) => setState(() => _selectedParent = v!),
+                    ),
                   ),
-                ),
               ),
               const SizedBox(height: 32),
               Row(

@@ -96,7 +96,6 @@ class Sidebar extends StatelessWidget {
                 _buildMenuItem(context, Icons.shopping_cart_outlined, 'Orders', '/orders'),
                 _buildMenuItem(context, Icons.category_outlined, 'Categories', '/categories'),
                 _buildMenuItem(context, Icons.account_tree_outlined, 'Subcategories', '/subcategories'),
-                _buildMenuItem(context, Icons.local_offer_outlined, 'Discounts', '/discounts'),
                 _buildMenuItem(context, Icons.group_outlined, 'Users', '/users'),
                 _buildMenuItem(context, Icons.storefront_outlined, 'Vendors', '/vendors'),
                 _buildMenuItem(context, Icons.image_outlined, 'Hero Banners', '/banners'),

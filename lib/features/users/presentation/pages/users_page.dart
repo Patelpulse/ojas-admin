@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
+import 'package:ojas_admin/features/users/data/services/user_service.dart';
 
 class UsersPage extends StatefulWidget {
   final String currentRoute;
@@ -12,12 +15,70 @@ class UsersPage extends StatefulWidget {
 }
 
 class _UsersPageState extends State<UsersPage> {
+  final UserService _userService = sl<UserService>();
+  List<dynamic> _allUsers = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
   String _selectedRole = 'All';
   String _selectedStatus = 'All';
   String _searchQuery = '';
 
   final List<String> _roleOptions = ['All', 'Admin', 'Customer', 'Vendor'];
   final List<String> _statusOptions = ['All', 'Active', 'Inactive', 'Banned'];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+  }
+
+  Future<void> _fetchUsers() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      final users = await _userService.getUsers();
+      setState(() {
+        _allUsers = users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching users: $e');
+      setState(() {
+        _errorMessage = 'Failed to load users. Please check if the server is running.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<dynamic> get _filteredUsers {
+    return _allUsers.where((user) {
+      // Role Filter
+      bool roleMatch = _selectedRole == 'All';
+      if (!roleMatch) {
+        String roleStr = user['role']?.toString().toLowerCase() ?? '';
+        if (_selectedRole == 'Admin' && roleStr == 'admin') roleMatch = true;
+        if (_selectedRole == 'Customer' && roleStr == 'user') roleMatch = true;
+        if (_selectedRole == 'Vendor' && roleStr == 'vendor') roleMatch = true;
+      }
+
+      // Status Filter
+      bool statusMatch = _selectedStatus == 'All' || _selectedStatus == 'Active';
+
+      // Search Query
+      bool searchMatch = _searchQuery.isEmpty ||
+          (user['name']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+          (user['email']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+
+      return roleMatch && statusMatch && searchMatch;
+    }).toList();
+  }
+
+  int get _activeUsersCount => _allUsers.length;
+  int get _customersCount => _allUsers.where((u) => u['role'] == 'user').length;
+  int get _vendorsCount => _allUsers.where((u) => u['role'] == 'vendor').length;
 
   @override
   Widget build(BuildContext context) {
@@ -40,194 +101,347 @@ class _UsersPageState extends State<UsersPage> {
           ),
 
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'User & Customer Management',
-                            style: GoogleFonts.outfit(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Monitor accounts, adjust roles, and control access.',
-                            style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: Text('Refresh', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF22C55E), // Green
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Metrics Cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricCard(
-                          title: 'Active Users',
-                          value: '0',
-                          icon: Icons.shield_outlined,
-                          iconBgColor: const Color(0xFFDCFCE7), // Light green
-                          iconColor: const Color(0xFF22C55E), // Green
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: _buildMetricCard(
-                          title: 'Customers',
-                          value: '0',
-                          icon: Icons.person_add_alt_1_outlined,
-                          iconBgColor: const Color(0xFFDBEAFE), // Light blue
-                          iconColor: const Color(0xFF3B82F6), // Blue
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: _buildMetricCard(
-                          title: 'Vendors',
-                          value: '0',
-                          icon: Icons.filter_alt_outlined,
-                          iconBgColor: const Color(0xFFF3E8FF), // Light purple
-                          iconColor: const Color(0xFFA855F7), // Purple
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Table Container
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: RefreshIndicator(
+              onRefresh: _fetchUsers,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Filter Bar
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Row(
-                            children: [
-                              // Search
-                              Expanded(
-                                child: Container(
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.search, color: Colors.grey.shade400, size: 20),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: TextField(
-                                          onChanged: (v) => setState(() => _searchQuery = v),
-                                          decoration: InputDecoration(
-                                            hintText: 'Search by name or email',
-                                            hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 13),
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'User & Customer Management',
+                              style: GoogleFonts.outfit(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
                               ),
-                              const SizedBox(width: 24),
-
-                              // Role Filter
-                              Row(
-                                children: [
-                                  Text('Role', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
-                                  const SizedBox(width: 8),
-                                  _buildDropdown(
-                                    value: _selectedRole,
-                                    items: _roleOptions,
-                                    onChanged: (v) => setState(() => _selectedRole = v!),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(width: 24),
-
-                              // Status Filter
-                              Row(
-                                children: [
-                                  Text('Status', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
-                                  const SizedBox(width: 8),
-                                  _buildDropdown(
-                                    value: _selectedStatus,
-                                    items: _statusOptions,
-                                    onChanged: (v) => setState(() => _selectedStatus = v!),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Table Headers
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            border: Border.symmetric(horizontal: BorderSide(color: Colors.grey.shade200)),
-                          ),
-                          child: Row(
-                            children: [
-                              _tableHeader('USER/VENDOR DETAILS', flex: 3),
-                              _tableHeader('PHONE', flex: 2),
-                              _tableHeader('ROLE', flex: 1),
-                              _tableHeader('STATUS', flex: 1),
-                              _tableHeader('BUSINESS NAME', flex: 2),
-                              _tableHeader('JOINED DATE', flex: 2),
-                              _tableHeader('ACTIONS', flex: 1, align: TextAlign.right),
-                            ],
-                          ),
-                        ),
-
-                        // Empty State Data
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 60),
-                          child: Center(
-                            child: Text(
-                              'No users match the current filters.',
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Monitor accounts, adjust roles, and control access.',
                               style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
                             ),
+                          ],
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _fetchUsers,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: Text('Refresh', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF22C55E), // Green
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 0,
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 28),
+
+                    // Metrics Cards
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Active Users',
+                            value: _activeUsersCount.toString(),
+                            icon: Icons.shield_outlined,
+                            iconBgColor: const Color(0xFFDCFCE7),
+                            iconColor: const Color(0xFF22C55E),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Customers',
+                            value: _customersCount.toString(),
+                            icon: Icons.person_add_alt_1_outlined,
+                            iconBgColor: const Color(0xFFDBEAFE),
+                            iconColor: const Color(0xFF3B82F6),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Vendors',
+                            value: _vendorsCount.toString(),
+                            icon: Icons.filter_alt_outlined,
+                            iconBgColor: const Color(0xFFF3E8FF),
+                            iconColor: const Color(0xFFA855F7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Table Container
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Filter Bar
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Row(
+                              children: [
+                                // Search
+                                Expanded(
+                                  child: Container(
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade300),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.search, color: Colors.grey.shade400, size: 20),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: TextField(
+                                            onChanged: (v) => setState(() => _searchQuery = v),
+                                            decoration: InputDecoration(
+                                              hintText: 'Search by name or email',
+                                              hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 13),
+                                              border: InputBorder.none,
+                                              isDense: true,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+
+                                // Role Filter
+                                Row(
+                                  children: [
+                                    Text('Role', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+                                    const SizedBox(width: 8),
+                                    _buildDropdown(
+                                      value: _selectedRole,
+                                      items: _roleOptions,
+                                      onChanged: (v) => setState(() => _selectedRole = v!),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 24),
+
+                                // Status Filter
+                                Row(
+                                  children: [
+                                    Text('Status', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+                                    const SizedBox(width: 8),
+                                    _buildDropdown(
+                                      value: _selectedStatus,
+                                      items: _statusOptions,
+                                      onChanged: (v) => setState(() => _selectedStatus = v!),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Table Headers
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              border: Border.symmetric(horizontal: BorderSide(color: Colors.grey.shade200)),
+                            ),
+                            child: Row(
+                              children: [
+                                _tableHeader('USER/VENDOR DETAILS', flex: 3),
+                                _tableHeader('PHONE', flex: 2),
+                                _tableHeader('ROLE', flex: 1),
+                                _tableHeader('STATUS', flex: 1),
+                                _tableHeader('BUSINESS NAME', flex: 2),
+                                _tableHeader('JOINED DATE', flex: 2),
+                                _tableHeader('ACTIONS', flex: 1, align: TextAlign.right),
+                              ],
+                            ),
+                          ),
+
+                          if (_isLoading)
+                            const Padding(
+                              padding: EdgeInsets.all(60.0),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (_errorMessage.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(60.0),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      _errorMessage,
+                                      style: GoogleFonts.inter(color: Colors.red, fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: _fetchUsers,
+                                      child: const Text('Retry'),
+                                    )
+                                  ],
+                                ),
+                              ),
+                            )
+                          else if (_filteredUsers.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 60),
+                              child: Center(
+                                child: Text(
+                                  'No users match the current filters.',
+                                  style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
+                                ),
+                              ),
+                            )
+                          else
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _filteredUsers.length,
+                              separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
+                              itemBuilder: (context, index) {
+                                final user = _filteredUsers[index];
+                                return _buildUserRow(user);
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserRow(dynamic user) {
+    String roleStr = user['role']?.toString().toLowerCase() ?? 'user';
+    String role = roleStr.toUpperCase();
+    String name = user['name'] ?? 'N/A';
+    String email = user['email'] ?? 'N/A';
+    String phone = user['mobile'] ?? 'N/A';
+    String createdAt = user['createdAt'] != null 
+        ? DateFormat('MMM dd, yyyy').format(DateTime.parse(user['createdAt']))
+        : 'N/A';
+    String businessName = user['businessName'] ?? '-';
+    String photoUrl = user['photo'] ?? '';
+
+    Color roleColor = Colors.blue;
+    if (roleStr == 'admin') roleColor = Colors.red;
+    if (roleStr == 'vendor') roleColor = Colors.purple;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        children: [
+          // User Details
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey.shade100,
+                  backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                  child: photoUrl.isEmpty ? Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600)) : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: const Color(0xFF1E293B))),
+                      Text(email, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
+                    ],
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+
+          // Phone
+          Expanded(
+            flex: 2,
+            child: Text(phone, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
+          ),
+
+          // Role
+          Expanded(
+            flex: 1,
+            child: UnconstrainedBox(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: roleColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  role,
+                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: roleColor),
+                ),
+              ),
+            ),
+          ),
+
+          // Status
+          Expanded(
+            flex: 1,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDCFCE7),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, size: 10, color: Color(0xFF22C55E)),
+              ),
+            ),
+          ),
+
+          // Business Name
+          Expanded(
+            flex: 2,
+            child: Text(businessName, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
+          ),
+
+          // Joined Date
+          Expanded(
+            flex: 2,
+            child: Text(createdAt, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
+          ),
+
+          // Actions
+          Expanded(
+            flex: 1,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
               ),
             ),
           ),

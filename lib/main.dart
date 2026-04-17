@@ -9,10 +9,10 @@ import 'package:ojas_admin/features/settings/presentation/pages/settings_page.da
 import 'package:ojas_admin/features/products/presentation/pages/products_page.dart';
 import 'package:ojas_admin/features/categories/presentation/pages/categories_page.dart';
 import 'package:ojas_admin/features/subcategories/presentation/pages/subcategories_page.dart';
-import 'package:ojas_admin/features/discounts/presentation/pages/discounts_page.dart';
 import 'package:ojas_admin/features/vendors/presentation/pages/vendors_page.dart';
 import 'package:ojas_admin/features/help/presentation/pages/help_page.dart';
 import 'package:ojas_admin/features/auth/presentation/pages/login_page.dart';
+import 'package:ojas_admin/features/banners/presentation/pages/banners_page.dart';
 
 import 'package:ojas_admin/core/services/service_locator.dart' as di;
 
@@ -42,10 +42,10 @@ class MyApp extends StatelessWidget {
         '/products': (context) => const ProductsPage(),
         '/categories': (context) => const CategoriesPage(),
         '/subcategories': (context) => const SubcategoriesPage(),
-        '/discounts': (context) => const DiscountsPage(),
         '/orders': (context) => const OrdersPage(),
         '/users': (context) => const UsersPage(),
         '/vendors': (context) => const VendorsPage(),
+        '/banners': (context) => const BannersPage(),
         '/help': (context) => const HelpPage(),
       },
     );

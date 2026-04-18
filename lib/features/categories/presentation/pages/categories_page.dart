@@ -567,6 +567,8 @@ class _CategoryFormModalState extends State<CategoryFormModal> {
   late TextEditingController _descriptionController;
   String _selectedParent = 'No parent (Main Category)';
   bool _isSubmitting = false;
+  List<CategoryModel> _availableCategories = [];
+  bool _isLoadingCategories = true;
 
   @override
   void initState() {
@@ -575,6 +577,23 @@ class _CategoryFormModalState extends State<CategoryFormModal> {
     _descriptionController = TextEditingController(text: widget.category?.description);
     if (widget.category?.parent != null) {
       _selectedParent = widget.category!.parent!;
+    }
+    _fetchAvailableCategories();
+  }
+
+  Future<void> _fetchAvailableCategories() async {
+    try {
+      final data = await sl<CategoryService>().getCategories(type: 'global');
+      if (mounted) {
+        setState(() {
+          _availableCategories = data.map((e) => CategoryModel.fromJson(e)).toList();
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCategories = false);
+      }
     }
   }
 
@@ -660,27 +679,35 @@ class _CategoryFormModalState extends State<CategoryFormModal> {
               const SizedBox(height: 20),
               Text('Parent Category', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedParent,
-                      dropdownColor: Colors.white,
-                      isExpanded: true,
-                      items: ['No parent (Main Category)', 'Electronics', 'Fashion', 'Home & Living'].map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (v) => setState(() => _selectedParent = v!),
+              _isLoadingCategories 
+                ? const Center(child: CircularProgressIndicator())
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedParent,
+                        dropdownColor: Colors.white,
+                        isExpanded: true,
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: 'No parent (Main Category)',
+                            child: Text('No parent (Main Category)'),
+                          ),
+                          ..._availableCategories.map((cat) {
+                            return DropdownMenuItem<String>(
+                              value: cat.name,
+                              child: Text(cat.name),
+                            );
+                          }),
+                        ],
+                        onChanged: (v) => setState(() => _selectedParent = v!),
+                      ),
                     ),
                   ),
-              ),
               const SizedBox(height: 32),
               Row(
                 children: [

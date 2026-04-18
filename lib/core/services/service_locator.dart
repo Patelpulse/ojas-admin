@@ -6,6 +6,7 @@ import 'package:ojas_admin/features/categories/data/services/category_service.da
 import 'package:ojas_admin/features/users/data/services/user_service.dart';
 import 'package:ojas_admin/core/services/product_service.dart';
 import 'package:ojas_admin/features/auth/data/services/auth_service.dart';
+import 'package:ojas_admin/features/subcategories/data/services/subcategory_service.dart';
 
 final sl = GetIt.instance;
 
@@ -33,6 +34,10 @@ Future<void> init() async {
   
   if (!sl.isRegistered<CategoryService>()) {
     sl.registerLazySingleton(() => CategoryService());
+  }
+
+  if (!sl.isRegistered<SubcategoryService>()) {
+    sl.registerLazySingleton(() => SubcategoryService());
   }
 
   if (!sl.isRegistered<ProductService>()) {

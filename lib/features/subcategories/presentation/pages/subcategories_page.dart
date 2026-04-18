@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
+import 'package:ojas_admin/features/categories/data/services/category_service.dart';
+import 'package:ojas_admin/features/subcategories/data/services/subcategory_service.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
 
 class SubcategoriesPage extends StatefulWidget {
   const SubcategoriesPage({super.key});
@@ -11,6 +14,50 @@ class SubcategoriesPage extends StatefulWidget {
 
 class _SubcategoriesPageState extends State<SubcategoriesPage> {
   final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _subcategories = [];
+  List<dynamic> _categories = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    try {
+      final results = await Future.wait([
+        sl<SubcategoryService>().getSubcategories(),
+        sl<CategoryService>().getCategories(type: 'approved'),
+      ]);
+      setState(() {
+        _subcategories = results[0];
+        _categories = results[1];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSubcategory(String id) async {
+    try {
+      await sl<SubcategoryService>().deleteSubcategory(id);
+      _fetchData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +90,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Manage product sub-categories. 0 active sub-categories.',
+                            'Manage product sub-categories. ${_subcategories.length} active sub-categories.',
                             style: GoogleFonts.inter(
                               color: Colors.grey.shade500,
                               fontSize: 15,
@@ -78,11 +125,11 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                   // Stats Row
                   Row(
                     children: [
-                      _buildStatCard('Total Sub Categories', '0', const Color(0xFF0F172A)),
+                      _buildStatCard('Total Sub Categories', _subcategories.length.toString(), const Color(0xFF0F172A)),
                       const SizedBox(width: 24),
-                      _buildStatCard('Active Sub Categories', '0', const Color(0xFF10B981)),
+                      _buildStatCard('Active Sub Categories', _subcategories.where((s) => s['status'] == 'active').length.toString(), const Color(0xFF10B981)),
                       const SizedBox(width: 24),
-                      _buildStatCard('Sub-Sub Categories', '0', const Color(0xFF3B82F6)),
+                      _buildStatCard('Parent Categories', _categories.length.toString(), const Color(0xFF3B82F6)),
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -163,78 +210,97 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Container(
-                          height: 48,
-                          width: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF4EB),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.grid_view_rounded, color: Color(0xFFFF7600), size: 18),
-                            onPressed: () {},
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          height: 48,
-                          width: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.list_rounded, color: Colors.grey, size: 20),
-                            onPressed: () {},
-                          ),
-                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 32),
 
-                  // Empty State
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 80),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Transform.rotate(
-                          angle: -0.2,
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
+                  if (_isLoading)
+                    const Center(child: Padding(padding: EdgeInsets.all(50), child: CircularProgressIndicator()))
+                  else if (_subcategories.isEmpty)
+                    // Empty State
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 80),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Transform.rotate(
+                            angle: -0.2,
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                Icons.local_offer_outlined,
+                                size: 48,
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'No sub-categories found',
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try adding your first sub-category to get started',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    // Data Table
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade100),
+                      ),
+                      child: Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(2),
+                          1: FlexColumnWidth(2),
+                          2: FlexColumnWidth(1),
+                          3: IntrinsicColumnWidth(),
+                        },
+                        children: [
+                          TableRow(
                             decoration: BoxDecoration(
                               color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                             ),
-                            child: Icon(
-                              Icons.local_offer_outlined,
-                              size: 48,
-                              color: Colors.grey.shade300,
-                            ),
+                            children: [
+                              _buildTableHeader('Name'),
+                              _buildTableHeader('Parent Category'),
+                              _buildTableHeader('Status'),
+                              _buildTableHeader('Actions'),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'No sub-categories found',
-                          style: GoogleFonts.outfit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Try adjusting your search or filter criteria',
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
+                          ..._subcategories.map((sub) {
+                            return TableRow(
+                              children: [
+                                _buildTableCell(sub['name'] ?? ''),
+                                _buildTableCell(sub['category']?['name'] ?? 'N/A'),
+                                _buildStatusCell(sub['status'] ?? 'active'),
+                                _buildActionCell(sub['_id']),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -244,13 +310,90 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     );
   }
 
+  Widget _buildTableHeader(String text) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: const Color(0xFF0F172A),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableCell(String text) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          color: Colors.grey.shade700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusCell(String status) {
+    final isActive = status == 'active';
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: UnconstrainedBox(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(100),
+          ),
+          child: Text(
+            isActive ? 'Active' : 'Inactive',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isActive ? const Color(0xFF059669) : const Color(0xFFDC2626),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCell(String id) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+            onPressed: () => _deleteSubcategory(id),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   void _showAddSubcategoryDialog() {
+    final TextEditingController nameCtrl = TextEditingController();
+    final TextEditingController descCtrl = TextEditingController();
+    String? selectedCategoryId;
+    bool isActive = true;
+    bool isSaving = false;
+
     showDialog(
       context: context,
       builder: (context) {
-        bool isActive = true;
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setModalState) {
             return Dialog(
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
@@ -274,17 +417,39 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                     
                     _buildLabel('Name'),
                     const SizedBox(height: 8),
-                    _buildTextField('Enter sub category name'),
+                    _buildTextField('Enter sub category name', controller: nameCtrl),
                     const SizedBox(height: 20),
                     
                     _buildLabel('Parent Category'),
                     const SizedBox(height: 8),
-                    _buildDropdownField('Select a parent category'),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFF7600), width: 1.5),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedCategoryId,
+                          hint: Text('Select a parent category', style: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14)),
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          items: _categories.map((cat) {
+                            return DropdownMenuItem<String>(
+                              value: cat['_id'],
+                              child: Text(cat['name'] ?? '', style: GoogleFonts.inter(fontSize: 14)),
+                            );
+                          }).toList(),
+                          onChanged: (val) => setModalState(() => selectedCategoryId = val),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     
                     _buildLabel('Description'),
                     const SizedBox(height: 8),
-                    _buildTextField('Enter sub category description', maxLines: 4),
+                    _buildTextField('Enter sub category description', controller: descCtrl, maxLines: 4),
                     const SizedBox(height: 20),
                     
                     Row(
@@ -294,7 +459,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                           height: 24,
                           child: Checkbox(
                             value: isActive,
-                            onChanged: (val) => setState(() => isActive = val ?? false),
+                            onChanged: (val) => setModalState(() => isActive = val ?? false),
                             activeColor: const Color(0xFF3B82F6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                           ),
@@ -334,7 +499,32 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: isSaving ? null : () async {
+                              if (nameCtrl.text.isEmpty || selectedCategoryId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Please fill all required fields')),
+                                );
+                                return;
+                              }
+                              setModalState(() => isSaving = true);
+                              try {
+                                await sl<SubcategoryService>().createSubcategory({
+                                  'name': nameCtrl.text,
+                                  'description': descCtrl.text,
+                                  'category': selectedCategoryId,
+                                  'status': isActive ? 'active' : 'inactive',
+                                });
+                                if (context.mounted) Navigator.pop(context);
+                                _fetchData();
+                              } catch (e) {
+                                setModalState(() => isSaving = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')),
+                                  );
+                                }
+                              }
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFF7600),
                               foregroundColor: Colors.white,
@@ -342,12 +532,14 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               elevation: 0,
                             ),
-                            child: Text(
-                              'Create',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: isSaving 
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : Text(
+                                  'Create',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                           ),
                         ),
                       ],
@@ -373,8 +565,9 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     );
   }
 
-  Widget _buildTextField(String hint, {int maxLines = 1}) {
+  Widget _buildTextField(String hint, {int maxLines = 1, TextEditingController? controller}) {
     return TextField(
+      controller: controller,
       maxLines: maxLines,
       decoration: InputDecoration(
         hintText: hint,
@@ -391,26 +584,6 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdownField(String hint) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFFF7600), width: 1.5),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          hint: Text(hint, style: GoogleFonts.inter(color: Colors.grey.shade800, fontSize: 14)),
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-          items: [],
-          onChanged: (_) {},
         ),
       ),
     );

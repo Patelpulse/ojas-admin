@@ -329,6 +329,8 @@ class _BannersPageState extends State<BannersPage> {
   Color _getTypeColor(String type) {
     switch (type) {
       case 'main':
+      case 'main_slider_1':
+      case 'main_slider_2':
         return Colors.blue;
       case 'side_top':
         return Colors.pink;
@@ -336,6 +338,10 @@ class _BannersPageState extends State<BannersPage> {
         return Colors.teal;
       case 'offer':
         return Colors.orange;
+      case 'trending':
+        return Colors.purple;
+      case 'promo':
+        return Colors.indigo;
       default:
         return Colors.grey;
     }
@@ -358,7 +364,7 @@ class _BannerFormDialogState extends State<BannerFormDialog> {
   late TextEditingController _subtitleController;
   late TextEditingController _linkController;
   late TextEditingController _tagController;
-  String _selectedType = 'main';
+  String _selectedType = 'main_slider_1';
   bool _isActive = true;
   
   Uint8List? _selectedImageBytes;
@@ -372,7 +378,8 @@ class _BannerFormDialogState extends State<BannerFormDialog> {
     _subtitleController = TextEditingController(text: widget.banner?.subtitle);
     _linkController = TextEditingController(text: widget.banner?.link ?? '/');
     _tagController = TextEditingController(text: widget.banner?.tag);
-    _selectedType = widget.banner?.type ?? 'main';
+    final String initialType = widget.banner?.type ?? 'main_slider_1';
+    _selectedType = initialType == 'main' ? 'main_slider_1' : initialType;
     _isActive = widget.banner?.isActive ?? true;
   }
 
@@ -485,10 +492,13 @@ class _BannerFormDialogState extends State<BannerFormDialog> {
                   value: _selectedType,
                   decoration: const InputDecoration(labelText: 'Banner Type', border: OutlineInputBorder()),
                   items: const [
-                    DropdownMenuItem(value: 'main', child: Text('Main Hero Slider')),
+                    DropdownMenuItem(value: 'main_slider_1', child: Text('Main Slider - Image 1')),
+                    DropdownMenuItem(value: 'main_slider_2', child: Text('Main Slider - Image 2')),
                     DropdownMenuItem(value: 'side_top', child: Text('Side Banner (Top)')),
                     DropdownMenuItem(value: 'side_bottom', child: Text('Side Banner (Bottom)')),
                     DropdownMenuItem(value: 'offer', child: Text('Promotional Offer Banner')),
+                    DropdownMenuItem(value: 'trending', child: Text('Trending Section Banner')),
+                    DropdownMenuItem(value: 'promo', child: Text('Promo Grid Banner')),
                   ],
                   onChanged: (v) => setState(() => _selectedType = v!),
                 ),

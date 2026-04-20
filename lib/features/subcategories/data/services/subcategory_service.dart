@@ -44,6 +44,20 @@ class SubcategoryService {
     }
   }
 
+  Future<Map<String, dynamic>> updateSubcategory(String id, Map<String, dynamic> data) async {
+    try {
+      final response = await _apiService.dio.put('/admin/subcategory/$id', data: data);
+      if (response.statusCode == 200) {
+        return response.data['data'];
+      }
+      throw Exception('Failed to update subcategory');
+    } on DioException catch (e) {
+      throw Exception(_extractErrorMessage(e));
+    } catch (e) {
+      throw Exception('Error updating subcategory');
+    }
+  }
+
   Future<void> deleteSubcategory(String id) async {
     try {
       await _apiService.dio.delete('/admin/subcategory/$id');

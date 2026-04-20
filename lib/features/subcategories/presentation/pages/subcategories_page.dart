@@ -47,9 +47,32 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   }
 
   Future<void> _deleteSubcategory(String id) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: const Text('Are you sure you want to delete this subcategory?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     try {
       await sl<SubcategoryService>().deleteSubcategory(id);
       _fetchData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Subcategory deleted successfully')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -294,7 +317,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                                 _buildTableCell(sub['name'] ?? ''),
                                 _buildTableCell(sub['category']?['name'] ?? 'N/A'),
                                 _buildStatusCell(sub['status'] ?? 'active'),
-                                _buildActionCell(sub['_id']),
+                                _buildActionCell(sub),
                               ],
                             );
                           }),
@@ -362,7 +385,7 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     );
   }
 
-  Widget _buildActionCell(String id) {
+  Widget _buildActionCell(dynamic sub) {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Row(
@@ -370,17 +393,194 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
         children: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
-            onPressed: () {},
+            onPressed: () => _showEditSubcategoryDialog(sub),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-            onPressed: () => _deleteSubcategory(id),
+            onPressed: () => _deleteSubcategory(sub['_id']),
           ),
         ],
       ),
     );
   }
 
+
+  void _showEditSubcategoryDialog(dynamic sub) {
+    final TextEditingController nameCtrl = TextEditingController(text: sub['name']);
+    final TextEditingController descCtrl = TextEditingController(text: sub['description']);
+    String? selectedCategoryId = sub['category']?['_id'] ?? sub['category'];
+    bool isActive = sub['status'] == 'active';
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Dialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Container(
+                width: 450,
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Edit Sub Category',
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    _buildLabel('Name'),
+                    const SizedBox(height: 8),
+                    _buildTextField('Enter sub category name', controller: nameCtrl),
+                    const SizedBox(height: 20),
+                    
+                    _buildLabel('Parent Category'),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFF7600), width: 1.5),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedCategoryId,
+                          hint: Text('Select a parent category', style: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14)),
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          items: _categories.map((cat) {
+                            return DropdownMenuItem<String>(
+                              value: cat['_id'],
+                              child: Text(cat['name'] ?? '', style: GoogleFonts.inter(fontSize: 14)),
+                            );
+                          }).toList(),
+                          onChanged: (val) => setModalState(() => selectedCategoryId = val),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    _buildLabel('Description'),
+                    const SizedBox(height: 8),
+                    _buildTextField('Enter sub category description', controller: descCtrl, maxLines: 4),
+                    const SizedBox(height: 20),
+                    
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: isActive,
+                            onChanged: (val) => setModalState(() => isActive = val ?? false),
+                            activeColor: const Color(0xFF3B82F6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Active',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              side: BorderSide(color: Colors.grey.shade200),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF0F172A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isSaving ? null : () async {
+                              if (nameCtrl.text.isEmpty || selectedCategoryId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Please fill all required fields')),
+                                );
+                                return;
+                              }
+                              setModalState(() => isSaving = true);
+                              try {
+                                await sl<SubcategoryService>().updateSubcategory(sub['_id'], {
+                                  'name': nameCtrl.text,
+                                  'description': descCtrl.text,
+                                  'category': selectedCategoryId,
+                                  'status': isActive ? 'active' : 'inactive',
+                                });
+                                if (context.mounted) Navigator.pop(context);
+                                _fetchData();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Subcategory updated successfully')),
+                                  );
+                                }
+                              } catch (e) {
+                                setModalState(() => isSaving = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF7600),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            child: isSaving 
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : Text(
+                                  'Update',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _showAddSubcategoryDialog() {
     final TextEditingController nameCtrl = TextEditingController();

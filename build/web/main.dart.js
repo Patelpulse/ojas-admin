@@ -94972,7 +94972,7 @@ return null}}
 A.u2.prototype={
 a97(){var s=this.a,r=s.wy$
 r===$&&A.a()
-r.sJU("https://api.samajwaditechforce.com/ojas/api")
+r.sJU("http://72.61.172.182/api")
 s.wy$.sKo(B.po)
 r=s.wy$
 r.e=B.po

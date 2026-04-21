@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
 import 'package:ojas_admin/core/services/api_service.dart';
+import 'package:ojas_admin/features/settings/presentation/widgets/blog_management.dart';
 import 'package:dio/dio.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -130,130 +131,161 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return AdminLayout(
       currentRoute: '/settings',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Breadcrumb
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Text('Master Admin', style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
-                const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-                Text('Website Settings', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Website Identity & Branding',
-                              style: GoogleFonts.outfit(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Manage marketplace identity, colors, and contact details shown across the platform.',
-                              style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: Text('Reset Changes', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.grey.shade700,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            OutlinedButton.icon(
-                              onPressed: _resetToDefault,
-                              icon: const Icon(Icons.settings_backup_restore, size: 16),
-                              label: Text('Reset to Default', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: _saveSettings,
-                              icon: const Icon(Icons.save_outlined, size: 16),
-                              label: Text('Save Settings', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF8B5CF6), // Purple
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                elevation: 0,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Main Layout (2 Columns)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Column: Forms
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            children: [
-                              _buildBrandBasicsCard(),
-                              const SizedBox(height: 24),
-                              _buildLogoFaviconCard(),
-                              const SizedBox(height: 24),
-                              _buildAnnouncementCard(),
-                              const SizedBox(height: 24),
-                              _buildContactInfoCard(),
-                              const SizedBox(height: 24),
-                              _buildLegalPagesCard(),
-                              const SizedBox(height: 40),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        // Right Column: Preview
-                        Expanded(
-                          flex: 3,
-                          child: _buildPreviewCard(),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+      child: DefaultTabController(
+        length: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Breadcrumb
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Text('Master Admin', style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
+                  const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                  Text('Website Settings', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+                ],
               ),
             ),
-          ),
-        ],
+
+            // Tab Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              color: Colors.white,
+              child: TabBar(
+                isScrollable: true,
+                indicatorColor: const Color(0xFF8B5CF6),
+                labelColor: const Color(0xFF8B5CF6),
+                unselectedLabelColor: Colors.grey,
+                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                tabs: const [
+                  Tab(text: 'General Settings'),
+                  Tab(text: 'Blogs Management'),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: TabBarView(
+                children: [
+                  // Tab 1: General Settings
+                  SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title Row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Website Identity & Branding',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Manage marketplace identity, colors, and contact details shown across the platform.',
+                                    style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: () {},
+                                    icon: const Icon(Icons.refresh, size: 16),
+                                    label: Text('Reset Changes', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.grey.shade700,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  OutlinedButton.icon(
+                                    onPressed: _resetToDefault,
+                                    icon: const Icon(Icons.settings_backup_restore, size: 16),
+                                    label: Text('Reset to Default', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(color: Colors.red),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  ElevatedButton.icon(
+                                    onPressed: _saveSettings,
+                                    icon: const Icon(Icons.save_outlined, size: 16),
+                                    label: Text('Save Settings', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF8B5CF6), // Purple
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 28),
+
+                          // Main Layout (2 Columns)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Left Column: Forms
+                              Expanded(
+                                flex: 5,
+                                child: Column(
+                                  children: [
+                                    _buildBrandBasicsCard(),
+                                    const SizedBox(height: 24),
+                                    _buildLogoFaviconCard(),
+                                    const SizedBox(height: 24),
+                                    _buildAnnouncementCard(),
+                                    const SizedBox(height: 24),
+                                    _buildContactInfoCard(),
+                                    const SizedBox(height: 24),
+                                    _buildLegalPagesCard(),
+                                    const SizedBox(height: 40),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              // Right Column: Preview
+                              Expanded(
+                                flex: 3,
+                                child: _buildPreviewCard(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Tab 2: Blogs Management
+                  const SingleChildScrollView(
+                    padding: EdgeInsets.all(28),
+                    child: BlogManagement(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

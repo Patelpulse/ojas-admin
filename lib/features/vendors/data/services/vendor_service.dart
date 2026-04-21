@@ -30,4 +30,12 @@ class VendorService {
       rethrow;
     }
   }
+
+  Future<void> deleteVendor(String id) async {
+    try {
+      await _apiService.dio.delete('/admin/vendor/$id');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

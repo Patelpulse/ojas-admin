@@ -47,7 +47,7 @@ class _VendorsPageState extends State<VendorsPage> {
       await _fetchVendors();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vendor $status successfully')),
+          SnackBar(content: Text('Vendor ${status == 'inactive' ? 'deactivated' : (status == 'approved' ? 'activated' : status)} successfully')),
         );
       }
     } catch (e) {
@@ -55,6 +55,42 @@ class _VendorsPageState extends State<VendorsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update status: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _deleteVendor(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Vendor'),
+        content: const Text('Are you sure you want to delete this vendor? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await sl<VendorService>().deleteVendor(id);
+        await _fetchVendors();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vendor deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete vendor: $e')),
+          );
+        }
       }
     }
   }
@@ -241,8 +277,8 @@ class _VendorsPageState extends State<VendorsPage> {
   Widget _buildVendorRow(Map<String, dynamic> vendor) {
     final status = vendor['status'] ?? 'pending';
     final user = vendor['user'] ?? {};
-    final statusColor = status == 'approved' ? const Color(0xFF10B981) : (status == 'rejected' ? Colors.red : const Color(0xFFF59E0B));
-    final statusBg = status == 'approved' ? const Color(0xFFD1FAE5) : (status == 'rejected' ? Colors.red.shade50 : const Color(0xFFFEF3C7));
+    final statusColor = status == 'approved' ? const Color(0xFF10B981) : (status == 'rejected' ? Colors.red : (status == 'inactive' ? Colors.grey : const Color(0xFFF59E0B)));
+    final statusBg = status == 'approved' ? const Color(0xFFD1FAE5) : (status == 'rejected' ? Colors.red.shade50 : (status == 'inactive' ? Colors.grey.shade100 : const Color(0xFFFEF3C7)));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -330,8 +366,25 @@ class _VendorsPageState extends State<VendorsPage> {
                     icon: const Icon(Icons.cancel, color: Colors.red, size: 20),
                     tooltip: 'Reject',
                   ),
-                ] else
-                   const Icon(Icons.verified, color: Colors.blue, size: 20),
+                ] else ...[
+                  if (status == 'approved')
+                    IconButton(
+                      onPressed: () => _updateStatus(vendor['_id'], 'inactive'),
+                      icon: const Icon(Icons.pause_circle_outline, color: Colors.orange, size: 20),
+                      tooltip: 'Deactivate',
+                    )
+                  else if (status == 'inactive')
+                    IconButton(
+                      onPressed: () => _updateStatus(vendor['_id'], 'approved'),
+                      icon: const Icon(Icons.play_circle_outline, color: Color(0xFF10B981), size: 20),
+                      tooltip: 'Activate',
+                    ),
+                  IconButton(
+                    onPressed: () => _deleteVendor(vendor['_id']),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    tooltip: 'Delete',
+                  ),
+                ],
               ],
             ),
           ),

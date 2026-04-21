@@ -1,15 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
+import 'package:ojas_admin/features/dashboard/data/services/dashboard_service.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   final String currentRoute;
   const DashboardPage({super.key, this.currentRoute = '/admin-overview'});
 
   @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  bool _isLoading = true;
+  Map<String, dynamic> _stats = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStats();
+  }
+
+  Future<void> _fetchStats() async {
+    setState(() => _isLoading = true);
+    final data = await sl<DashboardService>().getStats();
+    setState(() {
+      _stats = data;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return AdminLayout(
+        currentRoute: widget.currentRoute,
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+        ),
+      );
+    }
+
+    final summary = _stats['summary'] ?? {};
+    final trendingProducts = _stats['trendingProducts'] as List? ?? [];
+    final topVendors = _stats['topVendors'] as List? ?? [];
+    final latestCategories = _stats['latestCategories'] as List? ?? [];
+    final latestSubcategories = _stats['latestSubcategories'] as List? ?? [];
+
     return AdminLayout(
-      currentRoute: currentRoute,
+      currentRoute: widget.currentRoute,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -27,79 +67,73 @@ class DashboardPage extends StatelessWidget {
           ),
 
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Admin Dashboard',
-                    style: GoogleFonts.outfit(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A),
+            child: RefreshIndicator(
+              onRefresh: _fetchStats,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(28),
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Admin Dashboard',
+                      style: GoogleFonts.outfit(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Overview of platform performance and key metrics',
-                    style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
-                  ),
-                  const SizedBox(height: 28),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Overview of platform performance and key metrics',
+                      style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
+                    ),
+                    const SizedBox(height: 28),
 
-                  // Top Stats Cards
-                  Row(
-                    children: [
-                      Expanded(child: _buildStatCard('Total Revenue', '₹0', 12.5, Icons.attach_money, Colors.green)),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildStatCard('Total Orders', '0', 8.2, Icons.shopping_cart_outlined, Colors.blue)),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildStatCard('Active Vendors', '0', 15.3, Icons.storefront_outlined, Colors.purple)),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildStatCard('Total Customers', '0', -2.4, Icons.group_outlined, Colors.orange)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                    // Top Stats Cards
+                    Row(
+                      children: [
+                        Expanded(child: _buildStatCard('Total Revenue', '₹${summary['totalRevenue'] ?? 0}', summary['revenueChange'] ?? 0.0, Icons.attach_money, Colors.green)),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildStatCard('Total Orders', '${summary['totalOrders'] ?? 0}', summary['ordersChange'] ?? 0.0, Icons.shopping_cart_outlined, Colors.blue)),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildStatCard('Active Vendors', '${summary['activeVendors'] ?? 0}', summary['vendorsChange'] ?? 0.0, Icons.storefront_outlined, Colors.purple)),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildStatCard('Total Customers', '${summary['totalCustomers'] ?? 0}', summary['customersChange'] ?? 0.0, Icons.group_outlined, Colors.orange)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-                  // Row 1: Charts
-                  Row(
-                    children: [
-                      Expanded(child: _buildChartCard('Weekly Revenue', 'Last 7 days from database orders', Icons.bar_chart, Colors.purple, _buildBarChartPlaceholder())),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildChartCard('Sales Trend', 'Last 6 months from database orders', Icons.trending_up, Colors.green, _buildLineChartPlaceholder())),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                    // Row 1: Charts
+                    Row(
+                      children: [
+                        Expanded(child: _buildChartCard('Weekly Revenue', 'Last 7 days revenue trends', Icons.bar_chart, Colors.purple, _buildBarChart(_stats['charts']?['weeklyRevenue']))),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildChartCard('Sales Trend', 'Monthly growth analysis', Icons.trending_up, Colors.green, _buildLineChart(_stats['charts']?['monthlyRevenue']))),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-                  // Row 2: Products & Vendors
-                  Row(
-                    children: [
-                      Expanded(child: _buildEmptyCard('Trending Products', 'Top selling items this month', Icons.widgets_outlined, Colors.blue)),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildEmptyCard('Top Revenue Vendors', 'Top 0 highest earning sellers', Icons.store_outlined, Colors.purple)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                    // Row 2: Products & Vendors
+                    Row(
+                      children: [
+                        Expanded(child: _buildListCard('Trending Products', 'Top selling items', Icons.widgets_outlined, Colors.blue, trendingProducts, (item) => '${item['name']}', (item) => 'Sales: ${item['count']}')),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildListCard('Top Revenue Vendors', 'Highest earning sellers', Icons.store_outlined, Colors.purple, topVendors, (item) => '${item['businessName']}', (item) => 'Revenue: ₹${item['revenue']}')),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-                  // Row 3: Categories
-                  Row(
-                    children: [
-                      Expanded(child: _buildNoDataCard('Categories', 'Product categories overview', Icons.category_outlined, Colors.purple, 'No categories found')),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildNoDataCard('Subcategories', 'Latest subcategories', Icons.account_tree_outlined, Colors.blue, 'No subcategories found')),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Row 4: Recent Activity
-                  Row(
-                    children: [
-                      Expanded(child: _buildEmptyCard('Recent Orders', 'Latest transactions', Icons.shopping_cart_outlined, Colors.green)),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildEmptyCard('Platform Activity', 'Recent updates', Icons.show_chart, Colors.blue)),
-                    ],
-                  ),
-                ],
+                    // Row 3: Categories & Subcategories
+                    Row(
+                      children: [
+                        Expanded(child: _buildListCard('Recent Categories', 'Latest product categories', Icons.category_outlined, Colors.purple, latestCategories, (item) => '${item['name']}', (item) => 'Status: Active')),
+                        const SizedBox(width: 20),
+                        Expanded(child: _buildListCard('Recent Subcategories', 'Latest sub-divisions', Icons.account_tree_outlined, Colors.blue, latestSubcategories, (item) => '${item['name']}', (item) => 'Status: Active')),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -108,7 +142,7 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, double percentage, IconData icon, MaterialColor color) {
+  Widget _buildStatCard(String title, String value, num percentage, IconData icon, MaterialColor color) {
     final isPositive = percentage >= 0;
     return Container(
       padding: const EdgeInsets.all(24),
@@ -166,7 +200,7 @@ class DashboardPage extends StatelessWidget {
 
   Widget _buildChartCard(String title, String subtitle, IconData icon, MaterialColor color, Widget content) {
     return Container(
-      height: 300,
+      height: 350,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -190,43 +224,16 @@ class DashboardPage extends StatelessWidget {
               Icon(icon, color: color.shade400, size: 20),
             ],
           ),
-          const Spacer(),
-          content,
+          const SizedBox(height: 24),
+          Expanded(child: content),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyCard(String title, String subtitle, IconData icon, MaterialColor color) {
+  Widget _buildListCard(String title, String subtitle, IconData icon, MaterialColor color, List items, String Function(dynamic) titleFn, String Function(dynamic) subFn) {
     return Container(
-      height: 120,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
-              const SizedBox(height: 4),
-              Text(subtitle, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
-            ],
-          ),
-          Icon(icon, color: color.shade400, size: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNoDataCard(String title, String subtitle, IconData icon, MaterialColor color, String emptyText) {
-    return Container(
-      height: 240,
+      height: 350,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -250,55 +257,111 @@ class DashboardPage extends StatelessWidget {
               Icon(icon, color: color.shade400, size: 20),
             ],
           ),
-          const Spacer(),
-          Center(
-            child: Column(
-              children: [
-                Icon(Icons.widgets_outlined, color: Colors.grey.shade300, size: 40),
-                const SizedBox(height: 12),
-                Text(emptyText, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14)),
-              ],
+          const SizedBox(height: 16),
+          if (items.isEmpty)
+            Expanded(
+              child: Center(
+                child: Text('No data available', style: GoogleFonts.inter(color: Colors.grey.shade400)),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: color.shade100,
+                          child: Text('${index + 1}', style: TextStyle(color: color.shade700, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(titleFn(item), style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                              Text(subFn(item), style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          const Spacer(),
         ],
       ),
     );
   }
 
-  Widget _buildBarChartPlaceholder() {
-    final days = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: days.map((day) => Column(
+  Widget _buildBarChart(List? data) {
+    if (data == null || data.isEmpty) {
+      return Center(child: Text('No recent orders', style: GoogleFonts.inter(color: Colors.grey.shade400)));
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: data.map((item) {
+        final revenue = item['revenue'] ?? 0;
+        final date = item['_id']?.toString().split('-').last ?? '';
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text('₹0k', style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade400)),
-            const SizedBox(height: 12),
-            Text(day, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600)),
+            Text('₹${(revenue/1000).toStringAsFixed(1)}k', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500)),
+            const SizedBox(height: 8),
+            Container(
+              width: 30,
+              height: (revenue / 1000).clamp(10, 150).toDouble(),
+              decoration: BoxDecoration(
+                color: Colors.indigo.shade400,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(date, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade600)),
           ],
-        )).toList(),
-      ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildLineChartPlaceholder() {
-    final months = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: months.map((month) => Column(
+  Widget _buildLineChart(List? data) {
+    if (data == null || data.isEmpty) {
+      return Center(child: Text('No historical data', style: GoogleFonts.inter(color: Colors.grey.shade400)));
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: data.map((item) {
+        final revenue = item['revenue'] ?? 0;
+        final month = item['_id']?.toString().split('-').last ?? '';
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text('0', style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade400)),
-            const SizedBox(height: 4),
-            Container(width: 6, height: 6, decoration: BoxDecoration(color: Colors.green.shade400, shape: BoxShape.circle)),
+            Text('₹${(revenue/1000).toStringAsFixed(1)}k', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500)),
             const SizedBox(height: 8),
-            Text(month, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600)),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+            ),
+            const SizedBox(height: 8),
+            Text(month, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade600)),
           ],
-        )).toList(),
-      ),
+        );
+      }).toList(),
     );
   }
 }

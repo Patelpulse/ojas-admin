@@ -80,6 +80,123 @@ class _UsersPageState extends State<UsersPage> {
   int get _customersCount => _allUsers.where((u) => u['role'] == 'user').length;
   int get _vendorsCount => _allUsers.where((u) => u['role'] == 'vendor').length;
 
+  void _handleUserAction(String action, dynamic user) {
+    final String name = user['name'] ?? 'User';
+    
+    switch (action) {
+      case 'role':
+        _showRoleChangeDialog(user);
+        break;
+      case 'password':
+        _showResetPasswordDialog(user);
+        break;
+      case 'delete':
+        _showDeleteConfirmation(user);
+        break;
+    }
+  }
+
+  void _showRoleChangeDialog(dynamic user) {
+    String currentRole = user['role'] ?? 'user';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Change Role for ${user['name']}', style: GoogleFonts.outfit()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: ['admin', 'user', 'vendor'].map((role) => RadioListTile<String>(
+            title: Text(role.toUpperCase()),
+            value: role,
+            groupValue: currentRole,
+            onChanged: (val) {
+              Navigator.pop(context);
+              _updateUserRole(user['_id'], val!);
+            },
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showResetPasswordDialog(dynamic user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Text('Are you sure you want to send a password reset link to ${user['email']}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Password reset link sent to ${user['email']}')),
+              );
+            },
+            child: const Text('Send Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(dynamic user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete User', style: TextStyle(color: Colors.red)),
+        content: Text('Are you sure you want to permanently delete ${user['name']}? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteUser(user['_id']);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateUserRole(String userId, String newRole) async {
+    try {
+      await _userService.updateUserRole(userId, newRole);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Role updated to $newRole successfully')),
+        );
+        _fetchUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update role: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteUser(String userId) async {
+    try {
+      await _userService.deleteUser(userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User deleted successfully')),
+        );
+        _fetchUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete user: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AdminLayout(
@@ -439,9 +556,43 @@ class _UsersPageState extends State<UsersPage> {
             flex: 1,
             child: Align(
               alignment: Alignment.centerRight,
-              child: IconButton(
-                onPressed: () {},
+              child: PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
                 icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                onSelected: (value) => _handleUserAction(value, user),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'role',
+                    child: Row(
+                      children: [
+                        Icon(Icons.badge_outlined, size: 18, color: Colors.blue),
+                        SizedBox(width: 12),
+                        Text('Change Role', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'password',
+                    child: Row(
+                      children: [
+                        Icon(Icons.lock_reset, size: 18, color: Colors.orange),
+                        SizedBox(width: 12),
+                        Text('Reset Password', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                        SizedBox(width: 12),
+                        Text('Delete User', style: TextStyle(fontSize: 14, color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

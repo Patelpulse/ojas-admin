@@ -14,10 +14,17 @@ class UserService {
     }
   }
 
-  Future<void> updateUserStatus(String id, String status) async {
+  Future<void> updateUserRole(String id, String role) async {
     try {
-      // Assuming we might need this later, adding as a placeholder
-      // await _apiService.dio.put('/admin/user-status/$id', data: {'status': status});
+      await _apiService.dio.put('/admin/user-role/$id', data: {'role': role});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteUser(String id) async {
+    try {
+      await _apiService.dio.delete('/admin/user/$id');
     } catch (e) {
       rethrow;
     }

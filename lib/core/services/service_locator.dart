@@ -8,6 +8,7 @@ import 'package:ojas_admin/core/services/product_service.dart';
 import 'package:ojas_admin/features/auth/data/services/auth_service.dart';
 import 'package:ojas_admin/features/subcategories/data/services/subcategory_service.dart';
 import 'package:ojas_admin/features/dashboard/data/services/dashboard_service.dart';
+import 'package:ojas_admin/features/help/data/services/admin_support_service.dart';
 
 final sl = GetIt.instance;
 
@@ -47,5 +48,9 @@ Future<void> init() async {
 
   if (!sl.isRegistered<DashboardService>()) {
     sl.registerLazySingleton(() => DashboardService(sl()));
+  }
+
+  if (!sl.isRegistered<AdminSupportService>()) {
+    sl.registerLazySingleton(() => AdminSupportService());
   }
 }

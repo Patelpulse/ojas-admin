@@ -19,6 +19,8 @@ class _HelpPageState extends State<HelpPage> {
   String _selectedTab = 'Content Management';
   final List<String> _types = ['All Types', 'FAQ', 'Contact Info', 'Links'];
   String _selectedType = 'All Types';
+  
+  String _ticketType = 'Vendor'; // 'Vendor' or 'User'
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +239,7 @@ class _HelpPageState extends State<HelpPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Vendor Support Tickets',
+                  '$_ticketType Support Tickets',
                   style: GoogleFonts.outfit(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -246,21 +248,29 @@ class _HelpPageState extends State<HelpPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Review and respond to help requests from vendors',
+                  'Review and respond to help requests from ${_ticketType.toLowerCase()}s',
                   style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
                 ),
               ],
             ),
-            IconButton(
-              onPressed: () => setState(() {}),
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh Tickets',
+            Row(
+              children: [
+                _buildTicketTypeToggle(),
+                const SizedBox(width: 16),
+                IconButton(
+                  onPressed: () => setState(() {}),
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh Tickets',
+                ),
+              ],
             ),
           ],
         ),
         const SizedBox(height: 28),
         FutureBuilder<List<SupportTicketModel>>(
-          future: sl<AdminSupportService>().getAllTickets(),
+          future: _ticketType == 'Vendor' 
+            ? sl<AdminSupportService>().getAllTickets()
+            : sl<AdminSupportService>().getAllUserTickets(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: Padding(padding: EdgeInsets.all(100), child: CircularProgressIndicator()));
@@ -282,6 +292,40 @@ class _HelpPageState extends State<HelpPage> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildTicketTypeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: ['Vendor', 'User'].map((type) {
+          final isSelected = _ticketType == type;
+          return GestureDetector(
+            onTap: () => setState(() => _ticketType = type),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : null,
+              ),
+              child: Text(
+                '$type Tickets',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey.shade600,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -326,6 +370,18 @@ class _HelpPageState extends State<HelpPage> {
                     'Ticket ID: ${ticket.ticketId}',
                     style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
                   ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      ticket.category,
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+                    ),
+                  ),
                 ],
               ),
               Text(
@@ -342,10 +398,10 @@ class _HelpPageState extends State<HelpPage> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.business, size: 14, color: Colors.grey.shade400),
+              Icon(_ticketType == 'Vendor' ? Icons.business : Icons.person_outline, size: 14, color: Colors.grey.shade400),
               const SizedBox(width: 6),
               Text(
-                'Vendor: ${ticket.vendorName}',
+                '${_ticketType == 'Vendor' ? 'Vendor' : 'User'}: ${ticket.vendorName}',
                 style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
               ),
               const SizedBox(width: 20),
@@ -427,7 +483,12 @@ class _HelpPageState extends State<HelpPage> {
                                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                                 .toList(),
                             onChanged: (v) async {
-                              final success = await sl<AdminSupportService>().updateStatus(ticket.id, v!);
+                              bool success = false;
+                              if (_ticketType == 'Vendor') {
+                                success = await sl<AdminSupportService>().updateStatus(ticket.id, v!);
+                              } else {
+                                success = await sl<AdminSupportService>().updateUserTicketStatus(ticket.id, v!);
+                              }
                               if (success) setState(() => selectedStatus = v);
                             },
                           ),
@@ -501,7 +562,13 @@ class _HelpPageState extends State<HelpPage> {
             ElevatedButton(
               onPressed: () async {
                 if (replyController.text.isNotEmpty) {
-                  final success = await sl<AdminSupportService>().addResponse(ticket.id, replyController.text);
+                  bool success = false;
+                  if (_ticketType == 'Vendor') {
+                    success = await sl<AdminSupportService>().addResponse(ticket.id, replyController.text);
+                  } else {
+                    success = await sl<AdminSupportService>().addUserTicketResponse(ticket.id, replyController.text);
+                  }
+                  
                   if (success && context.mounted) {
                     Navigator.pop(context);
                     this.setState(() {}); // Refresh main list

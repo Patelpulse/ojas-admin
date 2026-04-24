@@ -28,6 +28,12 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _returnRefundController = TextEditingController();
   final TextEditingController _termsController = TextEditingController();
   final TextEditingController _privacyController = TextEditingController();
+  // New: Social links
+  final TextEditingController _fbController = TextEditingController();
+  final TextEditingController _instaController = TextEditingController();
+  final TextEditingController _twitterController = TextEditingController();
+  final TextEditingController _ytController = TextEditingController();
+  final TextEditingController _linkedinController = TextEditingController();
   
   bool _enableAnnouncement = false;
   bool _isLoading = true;
@@ -59,6 +65,12 @@ class _SettingsPageState extends State<SettingsPage> {
         _returnRefundController.text = data['returnRefundPolicy'] ?? '';
         _termsController.text = data['termsConditions'] ?? '';
         _privacyController.text = data['privacyPolicy'] ?? '';
+        // New: Social links
+        _fbController.text = data['facebookLink'] ?? '';
+        _instaController.text = data['instagramLink'] ?? '';
+        _twitterController.text = data['twitterLink'] ?? '';
+        _ytController.text = data['youtubeLink'] ?? '';
+        _linkedinController.text = data['linkedinLink'] ?? '';
       }
     } catch (e) {
       debugPrint('Error loading settings: $e');
@@ -86,6 +98,12 @@ class _SettingsPageState extends State<SettingsPage> {
         'returnRefundPolicy': _returnRefundController.text,
         'termsConditions': _termsController.text,
         'privacyPolicy': _privacyController.text,
+        // New: Social links
+        'facebookLink': _fbController.text,
+        'instagramLink': _instaController.text,
+        'twitterLink': _twitterController.text,
+        'youtubeLink': _ytController.text,
+        'linkedinLink': _linkedinController.text,
       });
 
       debugPrint('Save response: ${response.statusCode} - ${response.data}');
@@ -259,6 +277,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                     _buildContactInfoCard(),
                                     const SizedBox(height: 24),
                                     _buildLegalPagesCard(),
+                                    const SizedBox(height: 24),
+                                    _buildSocialMediaCard(),
                                     const SizedBox(height: 40),
                                   ],
                                 ),
@@ -509,6 +529,48 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSocialMediaCard() {
+    return _buildCardWrapper(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Social Media Links', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+                  const SizedBox(height: 4),
+                  Text('Configure your platform\'s social media presence.', style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
+                ],
+              ),
+              const Icon(Icons.share_outlined, color: Colors.blue, size: 24),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(child: _buildTextField('Facebook URL', _fbController)),
+              const SizedBox(width: 20),
+              Expanded(child: _buildTextField('Instagram URL', _instaController)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: _buildTextField('Twitter (X) URL', _twitterController)),
+              const SizedBox(width: 20),
+              Expanded(child: _buildTextField('YouTube URL', _ytController)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildTextField('LinkedIn URL', _linkedinController),
         ],
       ),
     );

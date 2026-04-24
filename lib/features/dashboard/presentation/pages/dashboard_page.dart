@@ -117,9 +117,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     // Row 2: Products & Vendors
                     Row(
                       children: [
-                        Expanded(child: _buildListCard('Trending Products', 'Top selling items', Icons.widgets_outlined, Colors.blue, trendingProducts, (item) => '${item['name']}', (item) => 'Sales: ${item['count']}')),
+                        Expanded(child: _buildListCard('Trending Products', 'Top selling items', Icons.widgets_outlined, Colors.blue, trendingProducts, (item) => '${item['name']}', (item) => 'Sales: ${item['count']}', imageFn: (item) => item['image'])),
                         const SizedBox(width: 20),
-                        Expanded(child: _buildListCard('Top Revenue Vendors', 'Highest earning sellers', Icons.store_outlined, Colors.purple, topVendors, (item) => '${item['businessName']}', (item) => 'Revenue: ₹${item['revenue']}')),
+                        Expanded(child: _buildListCard('Top Revenue Vendors', 'Highest earning sellers', Icons.store_outlined, Colors.purple, topVendors, (item) => '${item['businessName']}', (item) => 'Revenue: ₹${item['revenue']}', imageFn: (item) => item['photo'])),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -127,9 +127,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     // Row 3: Categories & Subcategories
                     Row(
                       children: [
-                        Expanded(child: _buildListCard('Recent Categories', 'Latest product categories', Icons.category_outlined, Colors.purple, latestCategories, (item) => '${item['name']}', (item) => 'Status: Active')),
+                        Expanded(child: _buildListCard('Recent Categories', 'Latest product categories', Icons.category_outlined, Colors.purple, latestCategories, (item) => '${item['name']}', (item) => 'Status: ${item['status']}', imageFn: (item) => item['image'])),
                         const SizedBox(width: 20),
-                        Expanded(child: _buildListCard('Recent Subcategories', 'Latest sub-divisions', Icons.account_tree_outlined, Colors.blue, latestSubcategories, (item) => '${item['name']}', (item) => 'Status: Active')),
+                        Expanded(child: _buildListCard('Recent Subcategories', 'Latest sub-divisions', Icons.account_tree_outlined, Colors.blue, latestSubcategories, (item) => '${item['name']}', (item) => 'Status: ${item['status']}')),
                       ],
                     ),
                   ],
@@ -231,14 +231,21 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildListCard(String title, String subtitle, IconData icon, MaterialColor color, List items, String Function(dynamic) titleFn, String Function(dynamic) subFn) {
+  Widget _buildListCard(String title, String subtitle, IconData icon, MaterialColor color, List items, String Function(dynamic) titleFn, String Function(dynamic) subFn, {String? Function(dynamic)? imageFn}) {
     return Container(
-      height: 350,
+      height: 380,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,14 +261,28 @@ class _DashboardPageState extends State<DashboardPage> {
                   Text(subtitle, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13)),
                 ],
               ),
-              Icon(icon, color: color.shade400, size: 20),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color.shade400, size: 20),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           if (items.isEmpty)
             Expanded(
               child: Center(
-                child: Text('No data available', style: GoogleFonts.inter(color: Colors.grey.shade400)),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text('No data available', style: GoogleFonts.inter(color: Colors.grey.shade400)),
+                  ],
+                ),
               ),
             )
           else
@@ -270,29 +291,60 @@ class _DashboardPageState extends State<DashboardPage> {
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
+                  final imageUrl = imageFn?.call(item);
+                  
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade100),
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          backgroundColor: color.shade100,
-                          child: Text('${index + 1}', style: TextStyle(color: color.shade700, fontWeight: FontWeight.bold)),
-                        ),
+                        if (imageUrl != null && imageUrl.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              imageUrl,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 44,
+                                height: 44,
+                                color: color.shade100,
+                                child: Icon(Icons.image_not_supported_outlined, color: color.shade300, size: 20),
+                              ),
+                            ),
+                          )
+                        else
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: color.shade100,
+                            child: Text(
+                              titleFn(item).substring(0, 1).toUpperCase(), 
+                              style: TextStyle(color: color.shade700, fontWeight: FontWeight.bold, fontSize: 16)
+                            ),
+                          ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(titleFn(item), style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                              Text(
+                                titleFn(item), 
+                                style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: const Color(0xFF1E293B), fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
                               Text(subFn(item), style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
                             ],
                           ),
                         ),
+                        Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade300),
                       ],
                     ),
                   );
@@ -309,23 +361,40 @@ class _DashboardPageState extends State<DashboardPage> {
       return Center(child: Text('No recent orders', style: GoogleFonts.inter(color: Colors.grey.shade400)));
     }
 
+    double maxRevenue = 0;
+    for (var item in data) {
+      double rev = (item['revenue'] ?? 0).toDouble();
+      if (rev > maxRevenue) maxRevenue = rev;
+    }
+    if (maxRevenue == 0) maxRevenue = 1000;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: data.map((item) {
-        final revenue = item['revenue'] ?? 0;
+        final revenue = (item['revenue'] ?? 0).toDouble();
         final date = item['_id']?.toString().split('-').last ?? '';
+        final barHeight = (revenue / maxRevenue * 150).clamp(5.0, 150.0);
+        
         return Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text('₹${(revenue/1000).toStringAsFixed(1)}k', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500)),
+            Text('₹${(revenue >= 1000 ? (revenue/1000).toStringAsFixed(1) + 'k' : revenue.toStringAsFixed(0))}', 
+                style: GoogleFonts.inter(fontSize: 9, color: Colors.grey.shade500)),
             const SizedBox(height: 8),
             Container(
-              width: 30,
-              height: (revenue / 1000).clamp(10, 150).toDouble(),
+              width: 32,
+              height: barHeight,
               decoration: BoxDecoration(
-                color: Colors.indigo.shade400,
-                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.indigo.shade400, Colors.indigo.shade600],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                boxShadow: [
+                  BoxShadow(color: Colors.indigo.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
+                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -341,21 +410,51 @@ class _DashboardPageState extends State<DashboardPage> {
       return Center(child: Text('No historical data', style: GoogleFonts.inter(color: Colors.grey.shade400)));
     }
 
+    double maxRevenue = 0;
+    for (var item in data) {
+      double rev = (item['revenue'] ?? 0).toDouble();
+      if (rev > maxRevenue) maxRevenue = rev;
+    }
+    if (maxRevenue == 0) maxRevenue = 1000;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: data.map((item) {
-        final revenue = item['revenue'] ?? 0;
+        final revenue = (item['revenue'] ?? 0).toDouble();
         final month = item['_id']?.toString().split('-').last ?? '';
+        final pointHeight = (revenue / maxRevenue * 150).clamp(5.0, 150.0);
+
         return Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text('₹${(revenue/1000).toStringAsFixed(1)}k', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500)),
+            Text('₹${(revenue >= 1000 ? (revenue/1000).toStringAsFixed(1) + 'k' : revenue.toStringAsFixed(0))}', 
+                style: GoogleFonts.inter(fontSize: 9, color: Colors.grey.shade500)),
             const SizedBox(height: 8),
             Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+              height: 150,
+              width: 2,
+              color: Colors.grey.shade100,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Positioned(
+                    bottom: pointHeight,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade500,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Text(month, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade600)),

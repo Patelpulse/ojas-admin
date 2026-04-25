@@ -14,11 +14,8 @@ class HelpPage extends StatefulWidget {
 }
 
 class _HelpPageState extends State<HelpPage> {
-  final TextEditingController _searchController = TextEditingController();
-  final List<String> _tabs = ['Content Management', 'Support Tickets'];
-  String _selectedTab = 'Content Management';
-  final List<String> _types = ['All Types', 'FAQ', 'Contact Info', 'Links'];
-  String _selectedType = 'All Types';
+  final List<String> _tabs = ['Support Tickets'];
+  String _selectedTab = 'Support Tickets';
   
   String _ticketType = 'Vendor'; // 'Vendor' or 'User'
 
@@ -42,48 +39,47 @@ class _HelpPageState extends State<HelpPage> {
             ),
           ),
 
-          // Tabs
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-            ),
-            child: Row(
-              children: _tabs.map<Widget>((tab) {
-                final isSelected = _selectedTab == tab;
-                return InkWell(
-                  onTap: () => setState(() => _selectedTab = tab),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: isSelected ? const Color(0xFF8B5CF6) : Colors.transparent,
-                          width: 2,
+          // Tabs (Hidden if only one tab exists, but keeping structure for future)
+          if (_tabs.length > 1)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: Row(
+                children: _tabs.map<Widget>((tab) {
+                  final isSelected = _selectedTab == tab;
+                  return InkWell(
+                    onTap: () => setState(() => _selectedTab = tab),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isSelected ? const Color(0xFF8B5CF6) : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        tab,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey.shade500,
                         ),
                       ),
                     ),
-                    child: Text(
-                      tab,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
 
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(28),
-              child: _selectedTab == 'Content Management' 
-                  ? _buildContentManagement() 
-                  : _buildSupportTickets(),
+              child: _buildSupportTickets(),
             ),
           ),
         ],
@@ -91,142 +87,6 @@ class _HelpPageState extends State<HelpPage> {
     );
   }
 
-  Widget _buildContentManagement() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title Row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Help Content Management',
-                  style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Manage FAQs, quick links, contact options, and categories',
-                  style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
-                ),
-              ],
-            ),
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add, size: 18),
-              label: Text('Add Help Content', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8B5CF6), // Purple
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                elevation: 0,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 28),
-
-        // Search Bar Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.search, color: Colors.grey.shade400, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search help content...',
-                            hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 13),
-                            border: InputBorder.none,
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Container(
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedType,
-                    items: _types
-                        .map((s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(s, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade700)),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedType = v!),
-                    icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                    isDense: true,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Main Empty State Card
-        Container(
-          width: double.infinity,
-          height: 400,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.question_mark_rounded, color: Colors.grey.shade300, size: 36),
-                const SizedBox(height: 16),
-                Text(
-                  'No help content found',
-                  style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildSupportTickets() {
     return Column(

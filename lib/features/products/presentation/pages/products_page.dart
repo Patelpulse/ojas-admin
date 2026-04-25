@@ -5,6 +5,8 @@ import 'package:ojas_admin/features/products/data/models/product_model.dart';
 import 'package:ojas_admin/core/services/product_service.dart';
 import 'package:ojas_admin/core/services/service_locator.dart';
 
+import 'package:ojas_admin/core/services/global_search_service.dart';
+
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
 
@@ -14,6 +16,7 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> {
   final TextEditingController _searchController = TextEditingController();
+  final GlobalSearchService _globalSearchService = sl<GlobalSearchService>();
   List<ProductModel> _allProducts = [];
   List<ProductModel> _filteredProducts = [];
   bool _isLoading = true;
@@ -23,6 +26,19 @@ class _ProductsPageState extends State<ProductsPage> {
     super.initState();
     _fetchProducts();
     _searchController.addListener(_onSearchChanged);
+    _globalSearchService.searchQuery.addListener(_onGlobalSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _globalSearchService.searchQuery.removeListener(_onGlobalSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onGlobalSearchChanged() {
+    _searchController.text = _globalSearchService.searchQuery.value;
   }
 
   Future<void> _fetchProducts() async {

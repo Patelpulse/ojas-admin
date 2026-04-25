@@ -4,6 +4,10 @@ import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dar
 
 import 'package:ojas_admin/features/orders/application/order_controller.dart';
 
+import 'package:ojas_admin/core/services/global_search_service.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
+import 'package:ojas_admin/features/orders/presentation/widgets/edit_invoice_dialog.dart';
+
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
 
@@ -13,6 +17,7 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage> {
   final OrderController _controller = OrderController();
+  final GlobalSearchService _globalSearchService = sl<GlobalSearchService>();
   String _selectedStatus = 'All Status';
   String _selectedPayment = 'All Payments';
   String _searchQuery = '';
@@ -24,6 +29,19 @@ class _OrdersPageState extends State<OrdersPage> {
   void initState() {
     super.initState();
     _controller.fetchAllOrders();
+    _globalSearchService.searchQuery.addListener(_onGlobalSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _globalSearchService.searchQuery.removeListener(_onGlobalSearchChanged);
+    super.dispose();
+  }
+
+  void _onGlobalSearchChanged() {
+    setState(() {
+      _searchQuery = _globalSearchService.searchQuery.value;
+    });
   }
 
   @override
@@ -215,11 +233,25 @@ class _OrdersPageState extends State<OrdersPage> {
                                         Expanded(flex: 2, child: Text('₹$total', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold))),
                                         Expanded(flex: 2, child: _buildStatusBadge(status)),
                                         Expanded(flex: 2, child: Text(date, style: GoogleFonts.inter(fontSize: 13))),
-                                        Expanded(flex: 1, child: PopupMenuButton<String>(
-                                          onSelected: (val) => _controller.updateOrderStatus(o['_id'], val),
-                                          itemBuilder: (context) => ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((e) => PopupMenuItem(value: e, child: Text(e))).toList(),
-                                          icon: const Icon(Icons.more_horiz, size: 20),
-                                        )),
+                                        Expanded(
+                                          flex: 1, 
+                                          child: Row(
+                                            children: [
+                                              IconButton(
+                                                onPressed: () {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => EditInvoiceDialog(order: o),
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.download_for_offline, size: 20, color: Color(0xFF6B21A8)),
+                                                tooltip: 'Download Invoice',
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   );

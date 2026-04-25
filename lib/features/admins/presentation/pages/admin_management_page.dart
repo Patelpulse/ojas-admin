@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
+import 'package:ojas_admin/features/admins/data/services/admin_management_service.dart';
+import 'package:ojas_admin/features/admins/domain/models/admin_model.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
+import 'package:intl/intl.dart';
 
 class AdminManagementPage extends StatefulWidget {
   const AdminManagementPage({super.key});
@@ -12,11 +16,109 @@ class AdminManagementPage extends StatefulWidget {
 class _AdminManagementPageState extends State<AdminManagementPage> {
   String _selectedStatus = 'All Statuses';
   String _searchQuery = '';
+  List<AdminModel> _admins = [];
+  bool _isLoading = true;
 
   final List<String> _statusOptions = ['All Statuses', 'Pending', 'Approved', 'Rejected'];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchAdmins();
+  }
+
+  Future<void> _fetchAdmins() async {
+    setState(() => _isLoading = true);
+    try {
+      final admins = await sl<AdminManagementService>().getAllAdmins();
+      setState(() {
+        _admins = admins;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching admins: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateStatus(String id, String status) async {
+    try {
+      final success = await sl<AdminManagementService>().updateAdminStatus(id, status);
+      if (success) {
+        _fetchAdmins();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Admin status updated to $status')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating status: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAdmin(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Delete', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete this admin account? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final success = await sl<AdminManagementService>().deleteAdmin(id);
+        if (success) {
+          _fetchAdmins();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Admin deleted successfully')),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting admin: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  List<AdminModel> get _filteredAdmins {
+    return _admins.where((admin) {
+      final matchesSearch = admin.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          admin.email.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesStatus = _selectedStatus == 'All Statuses' || admin.status == _selectedStatus;
+      return matchesSearch && matchesStatus;
+    }).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final pendingCount = _admins.where((a) => a.status == 'Pending').length;
+    final approvedCount = _admins.where((a) => a.status == 'Approved').length;
+    final rejectedCount = _admins.where((a) => a.status == 'Rejected').length;
+    final totalCount = _admins.length;
+
     return AdminLayout(
       currentRoute: '/admin-management',
       child: Column(
@@ -64,7 +166,7 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
                         ],
                       ),
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: _fetchAdmins,
                         icon: const Icon(Icons.refresh, size: 18),
                         label: Text('Refresh', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                         style: ElevatedButton.styleFrom(
@@ -82,13 +184,13 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
                   // Metrics Cards
                   Row(
                     children: [
-                      Expanded(child: _buildMetricCard('Pending Applications', '0', Icons.access_time, const Color(0xFFFEF08A), const Color(0xFFEAB308))),
+                      Expanded(child: _buildMetricCard('Pending Applications', pendingCount.toString(), Icons.access_time, const Color(0xFFFEF08A), const Color(0xFFEAB308))),
                       const SizedBox(width: 20),
-                      Expanded(child: _buildMetricCard('Approved Admins', '1', Icons.check_circle_outline, const Color(0xFFDCFCE7), const Color(0xFF22C55E))),
+                      Expanded(child: _buildMetricCard('Approved Admins', approvedCount.toString(), Icons.check_circle_outline, const Color(0xFFDCFCE7), const Color(0xFF22C55E))),
                       const SizedBox(width: 20),
-                      Expanded(child: _buildMetricCard('Rejected', '0', Icons.highlight_off, const Color(0xFFFEE2E2), const Color(0xFFEF4444))),
+                      Expanded(child: _buildMetricCard('Rejected', rejectedCount.toString(), Icons.highlight_off, const Color(0xFFFEE2E2), const Color(0xFFEF4444))),
                       const SizedBox(width: 20),
-                      Expanded(child: _buildMetricCard('Total Admins', '1', Icons.verified_user_outlined, const Color(0xFFF3E8FF), const Color(0xFFA855F7))),
+                      Expanded(child: _buildMetricCard('Total Admins', totalCount.toString(), Icons.verified_user_outlined, const Color(0xFFF3E8FF), const Color(0xFFA855F7))),
                     ],
                   ),
                   const SizedBox(height: 28),
@@ -168,19 +270,35 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
                           ),
                         ),
 
-                        // Empty State
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 60),
-                          child: Center(
-                            child: Text(
-                              'No admin applications found.',
-                              style: GoogleFonts.inter(
-                                color: Colors.grey.shade500,
-                                fontSize: 14,
+                        if (_isLoading)
+                          const Padding(
+                            padding: EdgeInsets.all(40.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_filteredAdmins.isEmpty)
+                          // Empty State
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 60),
+                            child: Center(
+                              child: Text(
+                                'No admin applications found.',
+                                style: GoogleFonts.inter(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _filteredAdmins.length,
+                            itemBuilder: (context, index) {
+                              final admin = _filteredAdmins[index];
+                              return _buildAdminRow(admin);
+                            },
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -191,6 +309,159 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildAdminRow(AdminModel admin) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+      ),
+      child: Row(
+        children: [
+          // Admin Details
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  child: Text(
+                    admin.name[0].toUpperCase(),
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(admin.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                      Text(admin.email, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Department
+          Expanded(
+            flex: 2,
+            child: Text(admin.department, style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF475569))),
+          ),
+
+          // Role
+          Expanded(
+            flex: 1,
+            child: Text(admin.role, style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF475569))),
+          ),
+
+          // Status
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusBgColor(admin.status),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    admin.status,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _getStatusTextColor(admin.status),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Applied Date
+          Expanded(
+            flex: 2,
+            child: Text(
+              DateFormat('MMM dd, yyyy').format(admin.appliedDate),
+              style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF475569)),
+            ),
+          ),
+
+          // Last Login
+          Expanded(
+            flex: 2,
+            child: Text(
+              admin.lastLogin != null ? DateFormat('MMM dd, HH:mm').format(admin.lastLogin!) : 'Never',
+              style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF475569)),
+            ),
+          ),
+
+          // Actions
+          Expanded(
+            flex: 1,
+            child: Row(
+              children: [
+                if (admin.status == 'Pending') ...[
+                  IconButton(
+                    onPressed: () => _updateStatus(admin.id, 'Approved'),
+                    icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                    tooltip: 'Approve',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _updateStatus(admin.id, 'Rejected'),
+                    icon: const Icon(Icons.highlight_off, color: Colors.red, size: 20),
+                    tooltip: 'Reject',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ] else ...[
+                   IconButton(
+                    onPressed: () => _deleteAdmin(admin.id),
+                    icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
+                    tooltip: 'Delete Admin',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusBgColor(String status) {
+    switch (status) {
+      case 'Pending':
+        return const Color(0xFFFEF9C3);
+      case 'Approved':
+        return const Color(0xFFDCFCE7);
+      case 'Rejected':
+        return const Color(0xFFFEE2E2);
+      default:
+        return Colors.grey.shade100;
+    }
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status) {
+      case 'Pending':
+        return const Color(0xFFA16207);
+      case 'Approved':
+        return const Color(0xFF15803D);
+      case 'Rejected':
+        return const Color(0xFFB91C1C);
+      default:
+        return Colors.grey.shade700;
+    }
   }
 
   Widget _buildMetricCard(String title, String value, IconData icon, Color iconBgColor, Color textColor) {
@@ -269,5 +540,4 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
       ),
     );
   }
-
 }

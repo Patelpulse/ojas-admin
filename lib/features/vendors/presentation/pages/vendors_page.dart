@@ -5,6 +5,8 @@ import 'package:ojas_admin/core/services/service_locator.dart';
 import 'package:ojas_admin/features/vendors/data/services/vendor_service.dart';
 import 'package:intl/intl.dart';
 
+import 'package:ojas_admin/core/services/global_search_service.dart';
+
 class VendorsPage extends StatefulWidget {
   const VendorsPage({super.key});
 
@@ -14,6 +16,7 @@ class VendorsPage extends StatefulWidget {
 
 class _VendorsPageState extends State<VendorsPage> {
   final TextEditingController _searchController = TextEditingController();
+  final GlobalSearchService _globalSearchService = sl<GlobalSearchService>();
   List<dynamic> _vendors = [];
   bool _isLoading = true;
 
@@ -21,6 +24,30 @@ class _VendorsPageState extends State<VendorsPage> {
   void initState() {
     super.initState();
     _fetchVendors();
+    _searchController.addListener(() => setState(() {}));
+    _globalSearchService.searchQuery.addListener(_onGlobalSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _globalSearchService.searchQuery.removeListener(_onGlobalSearchChanged);
+    super.dispose();
+  }
+
+  void _onGlobalSearchChanged() {
+    _searchController.text = _globalSearchService.searchQuery.value;
+  }
+
+  List<dynamic> get _filteredVendors {
+    final query = _searchController.text.toLowerCase();
+    if (query.isEmpty) return _vendors;
+    return _vendors.where((v) {
+      final bizName = v['businessName']?.toString().toLowerCase() ?? '';
+      final ownerName = v['user']?['name']?.toString().toLowerCase() ?? '';
+      final email = v['user']?['email']?.toString().toLowerCase() ?? '';
+      return bizName.contains(query) || ownerName.contains(query) || email.contains(query);
+    }).toList();
   }
 
   Future<void> _fetchVendors() async {
@@ -239,12 +266,12 @@ class _VendorsPageState extends State<VendorsPage> {
                             padding: EdgeInsets.symmetric(vertical: 60),
                             child: Center(child: CircularProgressIndicator()),
                           )
-                        else if (_vendors.isEmpty)
+                        else if (_filteredVendors.isEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(vertical: 60),
                             child: Center(
                               child: Text(
-                                'No vendor applications yet.',
+                                _searchController.text.isEmpty ? 'No vendor applications yet.' : 'No vendors match your search.',
                                 style: GoogleFonts.inter(
                                   color: Colors.grey.shade500,
                                   fontSize: 14,
@@ -256,9 +283,9 @@ class _VendorsPageState extends State<VendorsPage> {
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _vendors.length,
+                            itemCount: _filteredVendors.length,
                             itemBuilder: (context, index) {
-                              final vendor = _vendors[index];
+                              final vendor = _filteredVendors[index];
                               return _buildVendorRow(vendor);
                             },
                           ),

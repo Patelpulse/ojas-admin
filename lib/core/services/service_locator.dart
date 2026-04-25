@@ -9,10 +9,17 @@ import 'package:ojas_admin/features/auth/data/services/auth_service.dart';
 import 'package:ojas_admin/features/subcategories/data/services/subcategory_service.dart';
 import 'package:ojas_admin/features/dashboard/data/services/dashboard_service.dart';
 import 'package:ojas_admin/features/help/data/services/admin_support_service.dart';
+import 'package:ojas_admin/features/admins/data/services/admin_management_service.dart';
+import 'package:ojas_admin/core/services/global_search_service.dart';
 
 final sl = GetIt.instance;
 
 Future<void> init() async {
+  // Global Search Service
+  if (!sl.isRegistered<GlobalSearchService>()) {
+    sl.registerLazySingleton(() => GlobalSearchService());
+  }
+
   // Services
   if (!sl.isRegistered<ApiService>()) {
     sl.registerLazySingleton(() => ApiService());
@@ -52,5 +59,9 @@ Future<void> init() async {
 
   if (!sl.isRegistered<AdminSupportService>()) {
     sl.registerLazySingleton(() => AdminSupportService());
+  }
+
+  if (!sl.isRegistered<AdminManagementService>()) {
+    sl.registerLazySingleton(() => AdminManagementService(sl()));
   }
 }

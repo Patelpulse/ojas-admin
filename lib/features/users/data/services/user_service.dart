@@ -29,4 +29,12 @@ class UserService {
       rethrow;
     }
   }
+
+  Future<void> updateUserStatus(String id, String status) async {
+    try {
+      await _apiService.dio.put('/admin/user-status/$id', data: {'status': status});
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

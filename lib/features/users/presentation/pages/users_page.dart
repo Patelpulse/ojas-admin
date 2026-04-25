@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:ojas_admin/core/services/service_locator.dart';
 import 'package:ojas_admin/features/layout/presentation/widgets/admin_layout.dart';
 import 'package:ojas_admin/features/users/data/services/user_service.dart';
+import 'package:ojas_admin/core/services/global_search_service.dart';
 
 class UsersPage extends StatefulWidget {
   final String currentRoute;
@@ -16,6 +17,7 @@ class UsersPage extends StatefulWidget {
 
 class _UsersPageState extends State<UsersPage> {
   final UserService _userService = sl<UserService>();
+  final GlobalSearchService _globalSearchService = sl<GlobalSearchService>();
   List<dynamic> _allUsers = [];
   bool _isLoading = true;
   String _errorMessage = '';
@@ -31,6 +33,19 @@ class _UsersPageState extends State<UsersPage> {
   void initState() {
     super.initState();
     _fetchUsers();
+    _globalSearchService.searchQuery.addListener(_onGlobalSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _globalSearchService.searchQuery.removeListener(_onGlobalSearchChanged);
+    super.dispose();
+  }
+
+  void _onGlobalSearchChanged() {
+    setState(() {
+      _searchQuery = _globalSearchService.searchQuery.value;
+    });
   }
 
   Future<void> _fetchUsers() async {
@@ -65,7 +80,8 @@ class _UsersPageState extends State<UsersPage> {
       }
 
       // Status Filter
-      bool statusMatch = _selectedStatus == 'All' || _selectedStatus == 'Active';
+      bool statusMatch = _selectedStatus == 'All' || 
+          (user['status']?.toString().toLowerCase() == _selectedStatus.toLowerCase());
 
       // Search Query
       bool searchMatch = _searchQuery.isEmpty ||
@@ -76,16 +92,20 @@ class _UsersPageState extends State<UsersPage> {
     }).toList();
   }
 
-  int get _activeUsersCount => _allUsers.length;
+  int get _activeUsersCount => _allUsers.where((u) => u['status'] == 'active').length;
+  int get _inactiveUsersCount => _allUsers.where((u) => u['status'] == 'inactive').length;
+  int get _bannedUsersCount => _allUsers.where((u) => u['status'] == 'banned').length;
   int get _customersCount => _allUsers.where((u) => u['role'] == 'user').length;
   int get _vendorsCount => _allUsers.where((u) => u['role'] == 'vendor').length;
+  int get _totalUsersCount => _allUsers.length;
 
   void _handleUserAction(String action, dynamic user) {
-    final String name = user['name'] ?? 'User';
-    
     switch (action) {
       case 'role':
         _showRoleChangeDialog(user);
+        break;
+      case 'status':
+        _showStatusChangeDialog(user);
         break;
       case 'password':
         _showResetPasswordDialog(user);
@@ -113,6 +133,34 @@ class _UsersPageState extends State<UsersPage> {
               _updateUserRole(user['_id'], val!);
             },
           )).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showStatusChangeDialog(dynamic user) {
+    String currentStatus = user['status'] ?? 'active';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Change Status for ${user['name']}', style: GoogleFonts.outfit()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: ['active', 'inactive', 'banned'].map((status) {
+            Color statusColor = Colors.green;
+            if (status == 'inactive') statusColor = Colors.orange;
+            if (status == 'banned') statusColor = Colors.red;
+            
+            return RadioListTile<String>(
+              title: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
+              value: status,
+              groupValue: currentStatus,
+              onChanged: (val) {
+                Navigator.pop(context);
+                _updateUserStatus(user['_id'], val!);
+              },
+            );
+          }).toList(),
         ),
       ),
     );
@@ -174,6 +222,24 @@ class _UsersPageState extends State<UsersPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update role: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateUserStatus(String userId, String newStatus) async {
+    try {
+      await _userService.updateUserStatus(userId, newStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to $newStatus successfully')),
+        );
+        _fetchUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -268,32 +334,86 @@ class _UsersPageState extends State<UsersPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildMetricCard(
+                          child: _buildClickableMetricCard(
+                            title: 'Total Users',
+                            value: _totalUsersCount.toString(),
+                            icon: Icons.group_outlined,
+                            iconBgColor: const Color(0xFFF1F5F9),
+                            iconColor: const Color(0xFF64748B),
+                            onTap: () => setState(() {
+                              _selectedRole = 'All';
+                              _selectedStatus = 'All';
+                            }),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildClickableMetricCard(
                             title: 'Active Users',
                             value: _activeUsersCount.toString(),
                             icon: Icons.shield_outlined,
                             iconBgColor: const Color(0xFFDCFCE7),
                             iconColor: const Color(0xFF22C55E),
+                            onTap: () => setState(() {
+                              _selectedRole = 'All';
+                              _selectedStatus = 'Active';
+                            }),
                           ),
                         ),
-                        const SizedBox(width: 20),
+                        const SizedBox(width: 16),
                         Expanded(
-                          child: _buildMetricCard(
+                          child: _buildClickableMetricCard(
                             title: 'Customers',
                             value: _customersCount.toString(),
                             icon: Icons.person_add_alt_1_outlined,
                             iconBgColor: const Color(0xFFDBEAFE),
                             iconColor: const Color(0xFF3B82F6),
+                            onTap: () => setState(() {
+                              _selectedRole = 'Customer';
+                              _selectedStatus = 'All';
+                            }),
                           ),
                         ),
-                        const SizedBox(width: 20),
+                        const SizedBox(width: 16),
                         Expanded(
-                          child: _buildMetricCard(
+                          child: _buildClickableMetricCard(
                             title: 'Vendors',
                             value: _vendorsCount.toString(),
                             icon: Icons.filter_alt_outlined,
                             iconBgColor: const Color(0xFFF3E8FF),
                             iconColor: const Color(0xFFA855F7),
+                            onTap: () => setState(() {
+                              _selectedRole = 'Vendor';
+                              _selectedStatus = 'All';
+                            }),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildClickableMetricCard(
+                            title: 'Inactive',
+                            value: _inactiveUsersCount.toString(),
+                            icon: Icons.pause_circle_outline,
+                            iconBgColor: const Color(0xFFFEF9C3),
+                            iconColor: const Color(0xFFEAB308),
+                            onTap: () => setState(() {
+                              _selectedRole = 'All';
+                              _selectedStatus = 'Inactive';
+                            }),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildClickableMetricCard(
+                            title: 'Banned',
+                            value: _bannedUsersCount.toString(),
+                            icon: Icons.block_outlined,
+                            iconBgColor: const Color(0xFFFEE2E2),
+                            iconColor: const Color(0xFFEF4444),
+                            onTap: () => setState(() {
+                              _selectedRole = 'All';
+                              _selectedStatus = 'Banned';
+                            }),
                           ),
                         ),
                       ],
@@ -528,14 +648,7 @@ class _UsersPageState extends State<UsersPage> {
             flex: 1,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDCFCE7),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check, size: 10, color: Color(0xFF22C55E)),
-              ),
+              child: _buildStatusIndicator(user['status'] ?? 'active'),
             ),
           ),
 
@@ -572,6 +685,16 @@ class _UsersPageState extends State<UsersPage> {
                     ),
                   ),
                   const PopupMenuItem(
+                    value: 'status',
+                    child: Row(
+                      children: [
+                        Icon(Icons.verified_user_outlined, size: 18, color: Colors.green),
+                        SizedBox(width: 12),
+                        Text('Change Status', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
                     value: 'password',
                     child: Row(
                       children: [
@@ -601,40 +724,96 @@ class _UsersPageState extends State<UsersPage> {
     );
   }
 
-  Widget _buildMetricCard({
+  Widget _buildStatusIndicator(String status) {
+    Color color = const Color(0xFF22C55E); // Green
+    IconData icon = Icons.check;
+    Color bgColor = const Color(0xFFDCFCE7);
+
+    if (status == 'inactive') {
+      color = Colors.orange;
+      icon = Icons.pause;
+      bgColor = Colors.orange.withOpacity(0.1);
+    } else if (status == 'banned') {
+      color = Colors.red;
+      icon = Icons.block;
+      bgColor = const Color(0xFFFEE2E2);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 10, color: color),
+    );
+  }
+
+  Widget _buildClickableMetricCard({
     required String title,
     required String value,
     required IconData icon,
     required Color iconBgColor,
     required Color iconColor,
+    required VoidCallback onTap,
   }) {
     return Container(
-      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
-              Text(value, style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      value,
+                      style: GoogleFonts.outfit(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

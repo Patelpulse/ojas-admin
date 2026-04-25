@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ojas_admin/core/services/service_locator.dart';
+import 'package:ojas_admin/core/services/global_search_service.dart';
 
 class TopBar extends StatefulWidget {
   const TopBar({super.key});
@@ -102,8 +104,9 @@ class _TopBarState extends State<TopBar> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
+                    onChanged: (v) => sl<GlobalSearchService>().updateSearch(v),
                     decoration: InputDecoration(
-                      hintText: 'demo@example.com',
+                      hintText: 'Search anywhere...',
                       hintStyle: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13),
                       border: InputBorder.none,
                       isDense: true,
